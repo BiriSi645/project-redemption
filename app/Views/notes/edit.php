@@ -1,39 +1,30 @@
-    <?= $this->extend('layouts/main') ?>
+<?= $this->extend('layouts/main') ?>
 
-    <?= $this->section('content') ?>
+<?= $this->section('content') ?>
+<h1>Notu Düzenle</h1>
 
-    <h1>Not Düzenle</h1>
-    <?php if (session()->getFlashdata('errors')): ?>
+<?php if ($errors = session()->getFlashdata('errors')): ?>
+    <div class="alert error">
+        <?php foreach ($errors as $error): ?><div><?= esc($error) ?></div><?php endforeach; ?>
+    </div>
+<?php endif; ?>
 
-        <?php foreach (session()->getFlashdata('errors') as $error): ?>
-            <p style="color: red;">
-                <?= esc($error) ?>
-            </p>
-        <?php endforeach; ?>
+<form method="post" action="<?= site_url('notes/' . $note['id']) ?>">
+    <?= csrf_field() ?>
+    <label for="title">Başlık</label>
+    <input id="title" type="text" name="title" value="<?= esc(old('title', $note['title'])) ?>" maxlength="255" required>
 
-    <?php endif; ?> 
+    <label for="content">Not</label>
+    <textarea id="content" name="content" required><?= esc(old('content', $note['content'])) ?></textarea>
 
-    <form method="post" action="/notes/<?= $note['id'] ?>">
+    <label style="display:flex; gap:8px; align-items:center; font-weight:normal">
+        <input type="checkbox" name="is_public" value="1" <?= old('is_public', (string) $note['is_public']) === '1' ? 'checked' : '' ?>>
+        Bu not public olsun ve diğer kullanıcılar görebilsin
+    </label>
 
-        <label>Başlık</label>
-        <br>
-
-        <input
-            type="text"
-            name="title"
-            value="<?= esc($note['title']) ?>"
-        >
-
-        <br><br>
-
-        <label>Not</label>
-        <br>
-
-        <textarea name="content"><?= esc($note['content']) ?></textarea>
-
-        <br><br>
-
-        <button type="submit">Güncelle</button>
-
-    </form>
-    <?= $this->endSection() ?>
+    <div style="display:flex; gap:8px; margin-top:22px">
+        <button class="button" type="submit">Güncelle</button>
+        <a class="button secondary" href="<?= site_url('notes') ?>">İptal</a>
+    </div>
+</form>
+<?= $this->endSection() ?>

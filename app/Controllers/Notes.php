@@ -2,102 +2,138 @@
 
 namespace App\Controllers;
 
-use App\Controllers\BaseController;
 use App\Models\NoteModel;
-use CodeIgniter\HTTP\ResponseInterface;
+use CodeIgniter\Exceptions\PageNotFoundException;
 
 class Notes extends BaseController
 {
     public function index()
     {
-        $noteModel = new NoteModel();
+        $userId  = (int) session()->get('user_id');
+        $isAdmin = session()->get('role') === 'admin';
 
-        $data = [
-            'notes' => $noteModel->findAll(),
-        ];
+        return view('notes/index', [
+            'title'   => $isAdmin ? 'Tüm Notlar' : 'Notlar',
+            'notes'   => (new NoteModel())->getVisibleTo($userId, $isAdmin),
+            'userId'  => $userId,
+            'isAdmin' => $isAdmin,
+        ]);
+    }
 
-        return view('notes/index', $data);
+    public function show(int $id)
+    {
+        $note = $this->findVisibleNote($id);
+
+        return view('notes/show', [
+            'title'     => $note['title'],
+            'note'      => $note,
+            'isOwner'   => (int) $note['user_id'] === (int) session()->get('user_id'),
+            'canDelete' => (int) $note['user_id'] === (int) session()->get('user_id')
+                || session()->get('role') === 'admin',
+        ]);
     }
 
     public function create()
     {
-        return view('notes/create');
+        return view('notes/create', ['title' => 'Yeni Not']);
     }
 
     public function store()
-    {    
-        $rules = [
-            'title'   => 'required|min_length[2]',
-            'content' => 'required|min_length[2]',
-        ];
-
-        if (! $this->validate($rules)) {
-            return redirect()
-                ->back()
-                ->withInput()
-                ->with('errors', $this->validator->getErrors());
-            }
-        $noteModel = new NoteModel();
-
-        $title = $this->request->getPost('title');
-        $content = $this->request->getPost('content');
-        
-        $noteModel->insert([
-            'title' => $title,
-            'content' => $content,
-        ]);
-
-        return redirect()->to('/notes');
-    }
-
-    public function edit($id)
     {
         $noteModel = new NoteModel();
-
-        $note = $noteModel->find($id);
-
-        if (!$note) {
-            return redirect()->to('/notes');
-        }
-
         $data = [
-            'note' => $note,
+            'user_id'   => (int) session()->get('user_id'),
+            'title'     => trim((string) $this->request->getPost('title')),
+            'content'   => trim((string) $this->request->getPost('content')),
+            'is_public' => $this->request->getPost('is_public') === '1' ? 1 : 0,
         ];
 
-        return view('notes/edit', $data);
-    }
-
-    public function update($id)
-    {
-        $rules = [
-            'title'   => 'required|min_length[2]',
-            'content' => 'required|min_length[2]',
-        ];
-
-        if (! $this->validate($rules)) {
-            return redirect()
-                ->back()
-                ->withInput()
-                ->with('errors', $this->validator->getErrors());
+        if (! $noteModel->insert($data)) {
+            return redirect()->back()->withInput()->with('errors', $noteModel->errors());
         }
 
-        $noteModel = new NoteModel();
-
-        $noteModel->update($id, [
-            'title'   => $this->request->getPost('title'),
-            'content' => $this->request->getPost('content'),
-        ]);
-
-        return redirect()->to('/notes');
+        return redirect()->to(site_url('notes'))->with('success', 'Not oluşturuldu.');
     }
 
-    public function delete($id)
+    public function edit(int $id)
     {
-        $noteModel = new NoteModel();
-
-        $noteModel->delete($id);
-
-        return redirect()->to('/notes');
+        return view('notes/edit', [
+            'title' => 'Notu Düzenle',
+            'note'  => $this->findOwnedNote($id),
+        ]);
     }
 
+    public function update(int $id)
+    {
+        $this->findOwnedNote($id);
+        $noteModel = new NoteModel();
+        $data = [
+            'title'     => trim((string) $this->request->getPost('title')),
+            'content'   => trim((string) $this->request->getPost('content')),
+            'is_public' => $this->request->getPost('is_public') === '1' ? 1 : 0,
+        ];
+
+        if (! $noteModel->update($id, $data)) {
+            return redirect()->back()->withInput()->with('errors', $noteModel->errors());
+        }
+
+        return redirect()->to(site_url('notes'))->with('success', 'Not güncellendi.');
+    }
+
+    public function delete(int $id)
+    {
+        $this->findDeletableNote($id);
+        (new NoteModel())->delete($id);
+
+        return redirect()->to(site_url('notes'))->with('success', 'Not silindi.');
+    }
+
+    private function findVisibleNote(int $id): array
+    {
+        $note = (new NoteModel())
+            ->select('notes.*, users.username AS owner_name')
+            ->join('users', 'users.id = notes.user_id', 'left')
+            ->find($id);
+
+        $canView = $note
+            && (
+                (int) $note['user_id'] === (int) session()->get('user_id')
+                || (int) $note['is_public'] === 1
+                || session()->get('role') === 'admin'
+            );
+
+        if (! $canView) {
+            throw PageNotFoundException::forPageNotFound('Not bulunamadı.');
+        }
+
+        return $note;
+    }
+
+    private function findOwnedNote(int $id): array
+    {
+        $note = (new NoteModel())->find($id);
+
+        if (! $note || (int) $note['user_id'] !== (int) session()->get('user_id')) {
+            throw PageNotFoundException::forPageNotFound('Not bulunamadı.');
+        }
+
+        return $note;
+    }
+
+    private function findDeletableNote(int $id): array
+    {
+        $note = (new NoteModel())->find($id);
+
+        $canDelete = $note
+            && (
+                (int) $note['user_id'] === (int) session()->get('user_id')
+                || session()->get('role') === 'admin'
+            );
+
+        if (! $canDelete) {
+            throw PageNotFoundException::forPageNotFound('Not bulunamadı.');
+        }
+
+        return $note;
+    }
 }

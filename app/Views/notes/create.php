@@ -1,31 +1,30 @@
-    <?= $this->extend('layouts/main') ?>
+<?= $this->extend('layouts/main') ?>
 
-    <?= $this->section('content') ?>
-    <h1>Yeni Not</h1>
-    <?php if (session()->getFlashdata('errors')): ?>
+<?= $this->section('content') ?>
+<h1>Yeni Not</h1>
 
-        <?php foreach (session()->getFlashdata('errors') as $error): ?>
-            <p style="color: red;">
-                <?= esc($error) ?>
-            </p>
-    <?php endforeach; ?>
-
+<?php if ($errors = session()->getFlashdata('errors')): ?>
+    <div class="alert error">
+        <?php foreach ($errors as $error): ?><div><?= esc($error) ?></div><?php endforeach; ?>
+    </div>
 <?php endif; ?>
-    <form method="post" action="/notes">
-        <label>Başlık</label>
-        <br>
 
-        <input type="text" name="title">
+<form method="post" action="<?= site_url('notes') ?>">
+    <?= csrf_field() ?>
+    <label for="title">Başlık</label>
+    <input id="title" type="text" name="title" value="<?= esc(old('title')) ?>" maxlength="255" required>
 
-        <br><br>
+    <label for="content">Not</label>
+    <textarea id="content" name="content" required><?= esc(old('content')) ?></textarea>
 
-        <label>Not</label>
-        <br>
+    <label style="display:flex; gap:8px; align-items:center; font-weight:normal">
+        <input type="checkbox" name="is_public" value="1" <?= old('is_public') === '1' ? 'checked' : '' ?>>
+        Bu not public olsun ve diğer kullanıcılar görebilsin
+    </label>
 
-        <textarea name="content"></textarea>
-
-        <br><br>
-
-        <button type="submit">Kaydet</button>
-    </form>
-    <?= $this->endSection() ?>
+    <div style="display:flex; gap:8px; margin-top:22px">
+        <button class="button" type="submit">Kaydet</button>
+        <a class="button secondary" href="<?= site_url('notes') ?>">İptal</a>
+    </div>
+</form>
+<?= $this->endSection() ?>
