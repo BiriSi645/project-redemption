@@ -5,6 +5,14 @@
     .tasks-header { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:22px; }
     .tasks-header h1 { margin:0 0 6px; }
     .tasks-header p { margin:0; color:#6b7280; }
+    .task-progress-overview { display:grid; grid-template-columns:auto minmax(0,1fr) auto; align-items:center; gap:18px; padding:18px 20px; margin-bottom:22px; border:1px solid #bfdbfe; border-radius:14px; background:linear-gradient(135deg,#eff6ff,#f5f3ff); }
+    .task-progress-ring { display:grid; width:76px; height:76px; place-items:center; position:relative; border-radius:50%; background:conic-gradient(#2563eb calc(var(--progress) * 1%),#dbeafe 0); }
+    .task-progress-ring::after { position:absolute; width:58px; height:58px; border-radius:50%; background:#fff; content:''; }
+    .task-progress-ring strong { position:relative; z-index:1; color:#1d4ed8; font-size:17px; }
+    .task-progress-copy strong { display:block; margin-bottom:5px; color:#1e3a8a; font-size:18px; }
+    .task-progress-copy span { color:#475569; line-height:1.5; }
+    .task-progress-numbers { color:#1e40af; text-align:right; white-space:nowrap; }
+    .task-progress-numbers strong { display:block; font-size:23px; }
     .task-filters { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:22px; }
     .task-filter { padding:8px 12px; border-radius:999px; background:#f3f4f6; color:#374151; text-decoration:none; }
     .task-filter.active { background:#111827; color:#fff; }
@@ -30,8 +38,12 @@
     .task-actions form { margin:0; }
     .task-actions .button { padding:8px 11px; }
     .empty-state { padding:42px 20px; border:1px dashed #d1d5db; border-radius:12px; text-align:center; color:#6b7280; }
+    html[data-theme="dark"] .task-progress-overview { border-color:#1d4ed8; background:linear-gradient(135deg,#172554,#2e1065); }
+    html[data-theme="dark"] .task-progress-ring::after { background:#1e293b; }
+    html[data-theme="dark"] .task-progress-copy strong, html[data-theme="dark"] .task-progress-numbers { color:#93c5fd; }
+    html[data-theme="dark"] .task-progress-copy span { color:#cbd5e1; }
     @media (max-width:900px) { .task-list { grid-template-columns:1fr; } }
-    @media (max-width:720px) { .tasks-header { align-items:flex-start; flex-direction:column; } }
+    @media (max-width:720px) { .tasks-header { align-items:flex-start; flex-direction:column; } .task-progress-overview { grid-template-columns:auto 1fr; } .task-progress-numbers { grid-column:1/-1; text-align:left; } }
 </style>
 
 <div class="tasks-header">
@@ -41,6 +53,21 @@
     </div>
     <a class="button" href="<?= site_url('tasks/create') ?>">Yeni Görev</a>
 </div>
+
+<?php
+$taskPercent = (int) $progressSummary['percent'];
+if ((int) $progressSummary['total'] === 0) $taskMotivation = ['📝 İlk görevinizi oluşturun', 'Başlamak, ilerlemenin ilk adımıdır.'];
+elseif ($taskPercent === 100) $taskMotivation = ['🏆 Tüm görevler tamamlandı!', 'Harika iş çıkardınız; listenizde bekleyen hiçbir görev kalmadı.'];
+elseif ($taskPercent >= 75) $taskMotivation = ['🔥 Son düzlüktesiniz!', 'Görevlerin çoğu tamamlandı; ritminizi biraz daha koruyun.'];
+elseif ($taskPercent >= 50) $taskMotivation = ['🚀 Yolun yarısını geçtiniz!', 'İlerlemeniz görünür hâle geldi, aynı tempoyla devam edin.'];
+elseif ($taskPercent >= 25) $taskMotivation = ['💪 Güzel bir başlangıç!', 'Tamamladığınız her görev yükünüzü biraz daha hafifletiyor.'];
+else $taskMotivation = ['🌱 Küçük adımlar birikiyor', 'Bugün yalnızca bir görevi bitirmek bile yüzdenizi yükseltecek.'];
+?>
+<section class="task-progress-overview" aria-label="Görev başarı özeti">
+    <div class="task-progress-ring" style="--progress:<?= $taskPercent ?>"><strong>%<?= $taskPercent ?></strong></div>
+    <div class="task-progress-copy"><strong><?= $taskMotivation[0] ?></strong><span><?= $taskMotivation[1] ?></span></div>
+    <div class="task-progress-numbers"><strong><?= (int)$progressSummary['completed'] ?> / <?= (int)$progressSummary['total'] ?></strong><span>görev tamamlandı</span></div>
+</section>
 
 <nav class="task-filters" aria-label="Görev filtreleri">
     <a class="task-filter <?= $activeStatus === 'all' ? 'active' : '' ?>" href="<?= site_url('tasks') ?>">Tümü</a>

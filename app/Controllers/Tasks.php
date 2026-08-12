@@ -20,6 +20,7 @@ class Tasks extends BaseController
         $category = trim((string) $this->request->getGet('category'));
         $priority = (string) $this->request->getGet('priority');
         $taskModel = new TaskModel();
+        $progressSummary = (new TaskModel())->dashboardSummary($userId);
 
         return view('tasks/index', [
             'title'        => 'Görevler',
@@ -30,6 +31,7 @@ class Tasks extends BaseController
             'search'       => $search,
             'activeCategory' => $category,
             'activePriority' => $priority,
+            'progressSummary' => $progressSummary,
         ]);
     }
 

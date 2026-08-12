@@ -119,12 +119,20 @@ class TaskModel extends Model
         $today = $this->db->escape(date('Y-m-d'));
         $summary = $this->select("SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) AS pending_count", false)
             ->select("SUM(CASE WHEN status = 'pending' AND due_date = {$today} THEN 1 ELSE 0 END) AS due_today_count", false)
+            ->select("SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed_count", false)
+            ->select('COUNT(*) AS total_count', false)
             ->where('user_id', $userId)
             ->first() ?? [];
+
+        $total = (int) ($summary['total_count'] ?? 0);
+        $completed = (int) ($summary['completed_count'] ?? 0);
 
         return [
             'pending' => (int) ($summary['pending_count'] ?? 0),
             'dueToday' => (int) ($summary['due_today_count'] ?? 0),
+            'completed' => $completed,
+            'total' => $total,
+            'percent' => $total === 0 ? 0 : (int) round(($completed / $total) * 100),
         ];
     }
 }

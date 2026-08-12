@@ -10,9 +10,21 @@ class Habits extends BaseController
 {
     public function index(): string
     {
+        $habits = (new HabitModel())->getForUserWithCurrentStatus((int) session()->get('user_id'));
+        $activeHabits = array_values(array_filter($habits, static fn (array $habit): bool => (int) $habit['is_active'] === 1));
+        $completedCount = array_sum(array_column($activeHabits, 'completed_count'));
+        $targetCount = array_sum(array_map(static fn (array $habit): int => (int) $habit['target_count'], $activeHabits));
+
         return view('habits/index', [
             'title' => 'Alışkanlıklar',
-            'habits' => (new HabitModel())->getForUserWithCurrentStatus((int) session()->get('user_id')),
+            'habits' => $habits,
+            'progressSummary' => [
+                'completed' => $completedCount,
+                'target' => $targetCount,
+                'percent' => $targetCount === 0 ? 0 : min(100, (int) round(($completedCount / $targetCount) * 100)),
+                'active' => count($activeHabits),
+                'achieved' => count(array_filter($activeHabits, static fn (array $habit): bool => $habit['completed'])),
+            ],
         ]);
     }
 
