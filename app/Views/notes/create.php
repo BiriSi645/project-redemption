@@ -12,10 +12,13 @@
 <form method="post" action="<?= site_url('notes') ?>">
     <?= csrf_field() ?>
     <label for="title">Başlık</label>
-    <input id="title" type="text" name="title" value="<?= esc(old('title')) ?>" maxlength="255" required>
+    <input id="title" type="text" name="title" value="<?= esc(old('title')) ?>" maxlength="255" data-speech-input required>
 
     <label for="content">Not</label>
-    <textarea id="content" name="content" required><?= esc(old('content')) ?></textarea>
+    <textarea id="content" name="content" data-speech-input required><?= esc(old('content')) ?></textarea>
+
+    <label for="category">Kategori</label>
+    <input id="category" type="text" name="category" value="<?= esc(old('category', 'Genel')) ?>" maxlength="100" placeholder="Örn. İş, Okul, Kişisel" required>
 
     <label style="display:flex; gap:8px; align-items:center; font-weight:normal">
         <input type="checkbox" name="is_public" value="1" <?= old('is_public') === '1' ? 'checked' : '' ?>>

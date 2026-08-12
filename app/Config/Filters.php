@@ -3,6 +3,8 @@
 namespace Config;
 
 use App\Filters\AuthFilter;
+use App\Filters\AdminFilter;
+use App\Filters\AuditLogFilter;
 use CodeIgniter\Config\Filters as BaseFilters;
 use CodeIgniter\Filters\Cors;
 use CodeIgniter\Filters\CSRF;
@@ -36,6 +38,8 @@ class Filters extends BaseFilters
         'pagecache'     => PageCache::class,
         'performance'   => PerformanceMetrics::class,
         'auth'          => AuthFilter::class,
+        'admin'         => AdminFilter::class,
+        'auditlog'      => AuditLogFilter::class,
     ];
 
     /**
@@ -79,7 +83,7 @@ class Filters extends BaseFilters
             // 'invalidchars',
         ],
         'after' => [
-            // 'honeypot',
+            'auditlog',
             // 'secureheaders',
         ],
     ];

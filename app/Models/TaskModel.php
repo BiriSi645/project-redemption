@@ -15,6 +15,7 @@ class TaskModel extends Model
         'user_id',
         'title',
         'description',
+        'category',
         'priority',
         'status',
         'due_date',
@@ -35,6 +36,10 @@ class TaskModel extends Model
         'description' => [
             'label' => 'Açıklama',
             'rules' => 'permit_empty|max_length[5000]',
+        ],
+        'category' => [
+            'label' => 'Kategori',
+            'rules' => 'required|max_length[100]',
         ],
         'priority' => [
             'label' => 'Öncelik',
@@ -74,7 +79,7 @@ class TaskModel extends Model
         ],
     ];
 
-    public function getForUser(int $userId, string $status = 'all'): array
+    public function getForUser(int $userId, string $status = 'all', string $search = '', string $category = '', string $priority = '', ?int $perPage = null): array
     {
         $builder = $this->where('user_id', $userId)
             ->orderBy("CASE priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END", '', false)
@@ -86,6 +91,40 @@ class TaskModel extends Model
             $builder->where('status', $status);
         }
 
-        return $builder->findAll();
+        if ($search !== '') {
+            $builder->groupStart()->like('title', $search)->orLike('description', $search)->groupEnd();
+        }
+
+        if ($category !== '') {
+            $builder->where('category', $category);
+        }
+
+        if (in_array($priority, ['low', 'medium', 'high'], true)) {
+            $builder->where('priority', $priority);
+        }
+
+        return $perPage === null ? $builder->findAll() : $builder->paginate($perPage);
+    }
+
+    public function categoriesForUser(int $userId): array
+    {
+        return array_column(
+            $this->select('category')->distinct()->where('user_id', $userId)->orderBy('category', 'ASC')->findAll(),
+            'category'
+        );
+    }
+
+    public function dashboardSummary(int $userId): array
+    {
+        $today = $this->db->escape(date('Y-m-d'));
+        $summary = $this->select("SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) AS pending_count", false)
+            ->select("SUM(CASE WHEN status = 'pending' AND due_date = {$today} THEN 1 ELSE 0 END) AS due_today_count", false)
+            ->where('user_id', $userId)
+            ->first() ?? [];
+
+        return [
+            'pending' => (int) ($summary['pending_count'] ?? 0),
+            'dueToday' => (int) ($summary['due_today_count'] ?? 0),
+        ];
     }
 }

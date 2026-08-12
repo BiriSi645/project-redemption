@@ -1,12 +1,13 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
+    <script>(()=>{let t=localStorage.getItem('project-redemption-theme');if(!localStorage.getItem('project-redemption-theme-default-v2')){if(!t||t==='light'){t='system';localStorage.setItem('project-redemption-theme',t)}localStorage.setItem('project-redemption-theme-default-v2','1')}if(t==='dark'||((t||'system')==='system'&&matchMedia('(prefers-color-scheme:dark)').matches))document.documentElement.style.colorScheme='dark'})();</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kayıt Ol | Project Redemption</title>
     <style>
         * { box-sizing: border-box; }
-        body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; font-family: Arial, sans-serif; background: #f3f4f6; color: #111827; }
+        body { margin: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; font-family: Arial, sans-serif; background: #f3f4f6; color: #111827; }
         .auth-card { width: 100%; max-width: 460px; padding: 32px; border-radius: 16px; background: #fff; box-shadow: 0 12px 32px rgba(17, 24, 39, .1); }
         h1 { margin: 0 0 8px; }
         .subtitle { margin: 0 0 24px; color: #6b7280; }
@@ -16,6 +17,9 @@
         .alert { padding: 12px; margin: 16px 0; border-radius: 8px; background: #fee2e2; color: #991b1b; }
         .footer { margin: 22px 0 0; text-align: center; color: #6b7280; }
         a { color: #2563eb; }
+        .site-footer { margin-top: 24px; color: #6b7280; text-align: center; font-size: 14px; }
+        .site-footer .heart { color: #dc2626; }
+        html[style*="dark"] body{background:#0f172a;color:#e5e7eb}html[style*="dark"] .auth-card{background:#1e293b}html[style*="dark"] input{background:#0f172a;border-color:#475569;color:#e5e7eb}
     </style>
 </head>
 <body>
@@ -48,5 +52,6 @@
 
     <p class="footer">Zaten hesabınız var mı? <a href="<?= site_url('login') ?>">Giriş yapın</a></p>
 </main>
+<footer class="site-footer">Made with <span class="heart" aria-label="love">♥</span> by Halide.</footer>
 </body>
 </html>

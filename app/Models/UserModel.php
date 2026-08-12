@@ -16,6 +16,10 @@ class UserModel extends Model
         'email',
         'password_hash',
         'role',
+        'theme',
+        'language',
+        'notifications_enabled',
+        'is_active',
     ];
 
     protected $useTimestamps = true;

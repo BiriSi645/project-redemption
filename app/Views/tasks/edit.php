@@ -18,10 +18,13 @@
     <form method="post" action="<?= site_url('tasks/' . $task['id']) ?>">
         <?= csrf_field() ?>
         <label for="title">Başlık</label>
-        <input id="title" type="text" name="title" value="<?= esc(old('title', $task['title'])) ?>" maxlength="255" required>
+        <input id="title" type="text" name="title" value="<?= esc(old('title', $task['title'])) ?>" maxlength="255" data-speech-input required>
 
         <label for="description">Açıklama</label>
-        <textarea id="description" name="description" maxlength="5000"><?= esc(old('description', $task['description'] ?? '')) ?></textarea>
+        <textarea id="description" name="description" maxlength="5000" data-speech-input><?= esc(old('description', $task['description'] ?? '')) ?></textarea>
+
+        <label for="category">Kategori</label>
+        <input id="category" type="text" name="category" value="<?= esc(old('category', $task['category'] ?? 'Genel')) ?>" maxlength="100" required>
 
         <div class="form-grid">
             <div>

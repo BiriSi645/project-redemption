@@ -11,10 +11,24 @@ class Journal extends BaseController
     {
         $userId  = (int) session()->get('user_id');
         $isAdmin = session()->get('role') === 'admin';
+        $search   = trim((string) $this->request->getGet('q'));
+        $mood     = (string) $this->request->getGet('mood');
+        $scope    = $isAdmin && $this->request->getGet('scope') === 'all' ? 'all' : 'mine';
+        $dateFrom = (string) $this->request->getGet('date_from');
+        $dateTo   = (string) $this->request->getGet('date_to');
+        $dateFrom = preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateFrom) ? $dateFrom : '';
+        $dateTo   = preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateTo) ? $dateTo : '';
+        $journalModel = new JournalEntryModel();
 
         return view('journal/index', [
-            'title'   => $isAdmin ? 'Tüm Günlükler' : 'Günlüğüm',
-            'entries' => (new JournalEntryModel())->getVisibleTo($userId, $isAdmin),
+            'title'   => $isAdmin && $scope === 'all' ? 'Tüm Günlükler' : 'Günlüğüm',
+            'entries' => $journalModel->getVisibleTo($userId, $isAdmin, $search, $mood, $dateFrom, $dateTo, $scope, 8),
+            'pager' => $journalModel->pager,
+            'search' => $search,
+            'activeMood' => $mood,
+            'dateFrom' => $dateFrom,
+            'dateTo' => $dateTo,
+            'activeScope' => $scope,
             'userId'  => $userId,
             'isAdmin' => $isAdmin,
         ]);
@@ -46,7 +60,9 @@ class Journal extends BaseController
             return redirect()->back()->withInput()->with('errors', $entryModel->errors());
         }
 
-        return redirect()->to(site_url('journal'))->with('success', 'Günlük kaydı oluşturuldu.');
+        return redirect()->to(site_url('journal'))
+            ->with('success', 'Günlük kaydı oluşturuldu.')
+            ->with('clearJournalDraft', 'project-redemption:journal-draft:' . (int) session()->get('user_id') . ':new');
     }
 
     public function edit(int $id): string
@@ -66,7 +82,9 @@ class Journal extends BaseController
             return redirect()->back()->withInput()->with('errors', $entryModel->errors());
         }
 
-        return redirect()->to(site_url('journal/' . $id))->with('success', 'Günlük kaydı güncellendi.');
+        return redirect()->to(site_url('journal/' . $id))
+            ->with('success', 'Günlük kaydı güncellendi.')
+            ->with('clearJournalDraft', 'project-redemption:journal-draft:' . (int) session()->get('user_id') . ':' . $id);
     }
 
     public function delete(int $id)

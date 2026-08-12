@@ -16,11 +16,20 @@ class Tasks extends BaseController
         }
 
         $userId = (int) session()->get('user_id');
+        $search = trim((string) $this->request->getGet('q'));
+        $category = trim((string) $this->request->getGet('category'));
+        $priority = (string) $this->request->getGet('priority');
+        $taskModel = new TaskModel();
 
         return view('tasks/index', [
             'title'        => 'Görevler',
-            'tasks'        => (new TaskModel())->getForUser($userId, $status),
+            'tasks'        => $taskModel->getForUser($userId, $status, $search, $category, $priority, 8),
+            'pager'        => $taskModel->pager,
+            'categories'   => $taskModel->categoriesForUser($userId),
             'activeStatus' => $status,
+            'search'       => $search,
+            'activeCategory' => $category,
+            'activePriority' => $priority,
         ]);
     }
 
@@ -96,6 +105,7 @@ class Tasks extends BaseController
         return [
             'title'       => trim((string) $this->request->getPost('title')),
             'description' => trim((string) $this->request->getPost('description')),
+            'category'    => ($category = trim((string) $this->request->getPost('category'))) === '' ? 'Genel' : $category,
             'priority'    => (string) $this->request->getPost('priority'),
             'due_date'    => $dueDate === '' ? null : $dueDate,
             'due_time'    => $dueDate === '' ? null : ($dueTime === '' ? '23:59' : $dueTime),

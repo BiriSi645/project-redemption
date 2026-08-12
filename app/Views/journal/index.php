@@ -6,6 +6,12 @@
     .journal-header h1 { margin:0 0 6px; }
     .journal-header p { margin:0; color:#6b7280; }
     .privacy-notice { padding:12px 14px; margin-bottom:22px; border-radius:10px; background:#eef2ff; color:#3730a3; }
+    .journal-scope { display:flex; gap:6px; max-width:420px; padding:5px; margin-bottom:18px; border:1px solid #e5e7eb; border-radius:11px; background:#f8fafc; }
+    .journal-scope a { flex:1; padding:9px 12px; border-radius:7px; color:#4b5563; text-align:center; text-decoration:none; font-size:14px; font-weight:700; }
+    .journal-scope a.active { background:#fff; color:#2563eb; box-shadow:0 1px 4px rgba(15,23,42,.1); }
+    html[data-theme="dark"] .journal-scope { background:#0f172a; border-color:#334155; }
+    html[data-theme="dark"] .journal-scope a { color:#94a3b8; }
+    html[data-theme="dark"] .journal-scope a.active { background:#334155; color:#93c5fd; }
     .journal-grid { display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:16px; }
     .journal-card { display:flex; flex-direction:column; min-height:230px; padding:20px; border:1px solid #e5e7eb; border-radius:14px; background:#fff; }
     .journal-card-top { display:flex; justify-content:space-between; gap:12px; align-items:start; }
@@ -35,15 +41,37 @@
 
 <div class="journal-header">
     <div>
-        <h1><?= $isAdmin ? 'Tüm Günlükler' : 'Günlüğüm' ?></h1>
-        <p><?= $isAdmin ? 'Admin olarak tüm kullanıcıların private günlüklerini görüntülüyorsunuz.' : 'Düşüncelerinizi ve gününüzü yalnızca size özel kaydedin.' ?></p>
+        <h1><?= $isAdmin && $activeScope === 'all' ? 'Tüm Günlükler' : 'Günlüğüm' ?></h1>
+        <p><?= $isAdmin && $activeScope === 'all' ? 'Yönetim amacıyla diğer kullanıcıların günlüklerini görüntülüyorsunuz.' : 'Düşüncelerinizi ve gününüzü yalnızca size özel kaydedin.' ?></p>
     </div>
     <a class="button" href="<?= site_url('journal/create') ?>">Yeni Kayıt</a>
 </div>
 
+<?php if ($isAdmin): ?>
+    <nav class="journal-scope" aria-label="Günlük görünümü">
+        <a class="<?= $activeScope === 'mine' ? 'active' : '' ?>" href="<?= site_url('journal') ?>" <?= $activeScope === 'mine' ? 'aria-current="page"' : '' ?>>Kendi günlüklerim</a>
+        <a class="<?= $activeScope === 'all' ? 'active' : '' ?>" href="<?= site_url('journal') ?>?scope=all" <?= $activeScope === 'all' ? 'aria-current="page"' : '' ?>>Tüm günlükler</a>
+    </nav>
+<?php endif; ?>
+
 <div class="privacy-notice">
-    🔒 Günlük kayıtları public yapılamaz. <?= $isAdmin ? 'Kayıtları yalnızca sahibi düzenleyebilir veya silebilir.' : 'Kayıtlarınızı yalnızca siz ve admin görüntüleyebilir.' ?>
+    🔒 <?= $isAdmin && $activeScope === 'all' ? 'Diğer kullanıcıların günlüklerini görüntüleyebilirsiniz; yalnızca kendi kayıtlarınızı düzenleyebilir veya silebilirsiniz.' : 'Günlük kayıtları public yapılamaz. Kayıtları yalnızca sahibi düzenleyebilir veya silebilir.' ?>
 </div>
+
+<form class="content-filter" method="get" action="<?= site_url('journal') ?>" style="display:grid; grid-template-columns:2fr 1fr 1fr 1fr auto auto; gap:9px; margin-bottom:22px">
+    <?php if ($isAdmin): ?><input type="hidden" name="scope" value="<?= esc($activeScope, 'attr') ?>"><?php endif; ?>
+    <input type="search" name="q" value="<?= esc($search) ?>" placeholder="Günlüklerde ara…" style="padding:10px; border:1px solid #d1d5db; border-radius:8px">
+    <select name="mood" style="padding:10px; border:1px solid #d1d5db; border-radius:8px; background:#fff">
+        <option value="">Tüm ruh hâlleri</option>
+        <?php foreach (['great'=>'Harika','good'=>'İyi','neutral'=>'Normal','bad'=>'Kötü','awful'=>'Çok kötü'] as $value=>$label): ?>
+            <option value="<?= $value ?>" <?= $activeMood === $value ? 'selected' : '' ?>><?= $label ?></option>
+        <?php endforeach; ?>
+    </select>
+    <input type="date" name="date_from" value="<?= esc($dateFrom) ?>" title="Başlangıç tarihi" style="padding:10px; border:1px solid #d1d5db; border-radius:8px">
+    <input type="date" name="date_to" value="<?= esc($dateTo) ?>" title="Bitiş tarihi" style="padding:10px; border:1px solid #d1d5db; border-radius:8px">
+    <button class="button" type="submit">Filtrele</button>
+    <a class="button secondary" href="<?= site_url('journal') ?><?= $isAdmin && $activeScope === 'all' ? '?scope=all' : '' ?>">Temizle</a>
+</form>
 
 <div class="journal-grid">
     <?php if (empty($entries)): ?>
@@ -78,4 +106,5 @@
         <?php endforeach; ?>
     <?php endif; ?>
 </div>
+<?php if (! empty($entries)): ?><?= $pager->links() ?><?php endif; ?>
 <?= $this->endSection() ?>

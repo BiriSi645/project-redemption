@@ -48,6 +48,23 @@
     <a class="task-filter <?= $activeStatus === 'completed' ? 'active' : '' ?>" href="<?= site_url('tasks') ?>?status=completed">Tamamlananlar</a>
 </nav>
 
+<form class="content-filter" method="get" action="<?= site_url('tasks') ?>" style="display:grid; grid-template-columns:2fr 1fr 1fr auto auto; gap:9px; margin-bottom:22px">
+    <input type="hidden" name="status" value="<?= esc($activeStatus, 'attr') ?>">
+    <input type="search" name="q" value="<?= esc($search) ?>" placeholder="Görevlerde ara…" style="padding:10px; border:1px solid #d1d5db; border-radius:8px">
+    <select name="category" style="padding:10px; border:1px solid #d1d5db; border-radius:8px; background:#fff">
+        <option value="">Tüm kategoriler</option>
+        <?php foreach ($categories as $category): ?><option value="<?= esc($category, 'attr') ?>" <?= $activeCategory === $category ? 'selected' : '' ?>><?= esc($category) ?></option><?php endforeach; ?>
+    </select>
+    <select name="priority" style="padding:10px; border:1px solid #d1d5db; border-radius:8px; background:#fff">
+        <option value="">Tüm öncelikler</option>
+        <option value="high" <?= $activePriority === 'high' ? 'selected' : '' ?>>Yüksek</option>
+        <option value="medium" <?= $activePriority === 'medium' ? 'selected' : '' ?>>Orta</option>
+        <option value="low" <?= $activePriority === 'low' ? 'selected' : '' ?>>Düşük</option>
+    </select>
+    <button class="button" type="submit">Filtrele</button>
+    <a class="button secondary" href="<?= site_url('tasks') ?>">Temizle</a>
+</form>
+
 <?php if (empty($tasks)): ?>
     <div class="empty-state">
         <p>Bu filtrede görüntülenecek görev bulunmuyor.</p>
@@ -77,6 +94,7 @@
                     <?php endif; ?>
                     <div class="task-meta">
                         <span class="badge priority-<?= esc($task['priority'], 'attr') ?>"><?= $priorityLabels[$task['priority']] ?? 'Orta' ?> öncelik</span>
+                        <span><?= esc($task['category'] ?? 'Genel') ?></span>
                         <?php if ($completed): ?><span>Tamamlandı</span><?php endif; ?>
                     </div>
 
@@ -104,6 +122,7 @@
             </article>
         <?php endforeach; ?>
     </div>
+    <?= $pager->links() ?>
 <?php endif; ?>
 
 <script>

@@ -63,17 +63,36 @@ class JournalEntryModel extends Model
         ],
     ];
 
-    public function getVisibleTo(int $userId, bool $isAdmin): array
+    public function getVisibleTo(int $userId, bool $isAdmin, string $search = '', string $mood = '', string $dateFrom = '', string $dateTo = '', string $scope = 'mine', ?int $perPage = null): array
     {
         $builder = $this->select('journal_entries.*, users.username AS owner_name')
             ->join('users', 'users.id = journal_entries.user_id', 'left')
             ->orderBy('journal_entries.entry_date', 'DESC')
             ->orderBy('journal_entries.created_at', 'DESC');
 
-        if (! $isAdmin) {
+        if (! $isAdmin || $scope !== 'all') {
             $builder->where('journal_entries.user_id', $userId);
         }
 
-        return $builder->findAll();
+        if ($search !== '') {
+            $builder->groupStart()
+                ->like('journal_entries.title', $search)
+                ->orLike('journal_entries.content', $search)
+                ->groupEnd();
+        }
+
+        if (in_array($mood, ['great', 'good', 'neutral', 'bad', 'awful'], true)) {
+            $builder->where('journal_entries.mood', $mood);
+        }
+
+        if ($dateFrom !== '') {
+            $builder->where('journal_entries.entry_date >=', $dateFrom);
+        }
+
+        if ($dateTo !== '') {
+            $builder->where('journal_entries.entry_date <=', $dateTo);
+        }
+
+        return $perPage === null ? $builder->findAll() : $builder->paginate($perPage);
     }
 }
