@@ -47,6 +47,7 @@ class AuditLogger
             '#^journal/\d+/delete$#' => ['journal.delete', 'Günlük kaydı silindi'],
             '#^journal/\d+$#' => ['journal.update', 'Günlük kaydı güncellendi'],
             '#^journal$#' => ['journal.create', 'Günlük kaydı oluşturuldu'],
+            '#^games/score$#' => ['game.score', 'Oyun skoru kaydedildi'],
             '#^profile/password$#' => ['profile.password', 'Hesap şifresi değiştirildi'],
             '#^profile/delete$#' => ['profile.delete', 'Hesap silme işlemi yapıldı'],
             '#^profile$#' => ['profile.update', 'Profil ayarları güncellendi'],

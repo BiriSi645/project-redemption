@@ -115,7 +115,7 @@
 
 <section class="stats-grid" aria-label="Genel özet">
     <article class="stat-card">
-        <span class="stat-label">Notlarım</span>
+        <span class="stat-label">Notlar</span>
         <span class="stat-value"><?= $ownNoteCount ?></span>
     </article>
     <article class="stat-card">

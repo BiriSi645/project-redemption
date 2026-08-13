@@ -189,7 +189,7 @@ else $taskMotivation = ['🌱 Küçük adımlar birikiyor', 'Bugün yalnızca bi
     }
 
     updateCountdowns();
-    window.setInterval(updateCountdowns, 1000);
+    window.setInterval(() => { if (!document.hidden) updateCountdowns(); }, 1000);
 })();
 </script>
 <?= $this->endSection() ?>

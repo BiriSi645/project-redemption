@@ -1,0 +1,12 @@
+<?= $this->extend('layouts/main') ?>
+<?= $this->section('content') ?>
+<style>
+    .multi-page{max-width:900px;margin:0 auto}.multi-head{margin-bottom:22px}.multi-head h1{margin:0 0 7px}.multi-head p{margin:0;color:#6b7280}.multi-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.multi-card{padding:24px;border:1px solid #e5e7eb;border-radius:16px;background:#fff}.multi-card h2{margin:0 0 8px}.multi-card p{margin:0 0 18px;color:#6b7280}.multi-card label{display:block;margin:13px 0 6px;font-weight:700}.multi-card select,.multi-card input{width:100%;height:44px;padding:8px 11px;border:1px solid #d1d5db;border-radius:9px;background:#fff;color:#111827;font:inherit}.multi-card button{width:100%;margin-top:16px}.room-code-input{text-transform:uppercase;letter-spacing:.2em;font-weight:800;text-align:center}html[data-theme="dark"] .multi-card{background:#1e293b;border-color:#334155}html[data-theme="dark"] .multi-card select,html[data-theme="dark"] .multi-card input{background:#0f172a;border-color:#475569;color:#e2e8f0}@media(max-width:700px){.multi-grid{grid-template-columns:1fr}}
+</style>
+<div class="multi-page"><header class="multi-head"><h1>👥 Birlikte Oyna</h1><p>Sudoku veya Mayın Tarlası için oda oluşturun; kodu arkadaşınızla paylaşın.</p></header>
+<?php if (session('error')): ?><div class="alert error"><?= esc(session('error')) ?></div><?php endif ?>
+<div class="multi-grid">
+    <form class="multi-card" method="post" action="<?= site_url('games/multiplayer/create') ?>"><?= csrf_field() ?><h2>Yeni oda</h2><p>Oyunu ve zorluğu seçip özel bir oda kodu alın.</p><label for="multi-game">Oyun</label><select id="multi-game" name="game"><option value="sudoku">Sudoku</option><option value="minesweeper">Mayın Tarlası</option></select><label for="multi-difficulty">Zorluk</label><select id="multi-difficulty" name="difficulty"><option value="beginner">Başlangıç</option><option value="medium">Orta</option><option value="expert">Zor</option></select><button class="button" type="submit">Oda oluştur</button></form>
+    <form class="multi-card" method="post" action="<?= site_url('games/multiplayer/join') ?>"><?= csrf_field() ?><h2>Odaya katıl</h2><p>Arkadaşınızın gönderdiği altı karakterli oda kodunu yazın.</p><label for="room-code">Oda kodu</label><input class="room-code-input" id="room-code" name="code" maxlength="6" minlength="6" autocomplete="off" required value="<?= esc(old('code') ?? '') ?>"><button class="button" type="submit">Odaya katıl</button></form>
+</div></div>
+<?= $this->endSection() ?>

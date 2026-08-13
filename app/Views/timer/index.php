@@ -142,7 +142,7 @@
 
     function renderStopwatchClock() {
         swDisplay.textContent = formatStopwatch(stopwatchNow());
-        if (swState.running) swFrame = requestAnimationFrame(renderStopwatchClock);
+        if (swState.running && !document.hidden) swFrame = requestAnimationFrame(renderStopwatchClock);
     }
 
     function renderStopwatch() {
@@ -262,7 +262,7 @@
         cdStart.disabled = cdState.running;
         cdPause.disabled = !cdState.running;
         [cdHours, cdMinutes, cdSeconds].forEach(input => { input.disabled = cdState.running || (remaining < cdState.duration && remaining > 0); });
-        if (cdState.running) cdInterval = setInterval(tickCountdown, 200);
+        if (cdState.running && !document.hidden) cdInterval = setInterval(tickCountdown, 1000);
     }
 
     [cdHours, cdMinutes, cdSeconds].forEach(input => input.addEventListener('input', () => {
@@ -303,7 +303,13 @@
     });
 
     document.addEventListener('visibilitychange', () => {
-        if (!document.hidden) { renderStopwatch(); renderCountdown(); }
+        if (document.hidden) {
+            cancelAnimationFrame(swFrame);
+            clearInterval(cdInterval);
+        } else {
+            renderStopwatch();
+            if (cdState.running && countdownNow() <= 0) finishCountdown(); else renderCountdown();
+        }
     });
 
     updateInputs(cdState.duration);

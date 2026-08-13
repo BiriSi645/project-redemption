@@ -134,6 +134,7 @@
         <a href="<?= site_url('tasks') ?>">Görevler</a>
         <a href="<?= site_url('habits') ?>">Alışkanlık Takibi</a>
         <a href="<?= site_url('timer') ?>">Kronometre</a>
+        <a href="<?= site_url('games') ?>">Oyunlar</a>
         <a href="<?= site_url('journal') ?>">Günlük</a>
         <?php if (session()->get('role') === 'admin'): ?>
             <a href="<?= site_url('admin') ?>">Admin Dashboard</a>
@@ -200,5 +201,6 @@
     })();
 </script>
 <script>localStorage.setItem('project-redemption-theme', <?= json_encode($selectedTheme) ?>);localStorage.setItem('project-redemption-theme-default-v2','1');</script>
+<?= view('partials/update_notifier', ['codeVersion' => (new \App\Libraries\CodeVersion())->current()]) ?>
 </body>
 </html>

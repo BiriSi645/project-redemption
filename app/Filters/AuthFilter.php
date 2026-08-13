@@ -17,7 +17,10 @@ class AuthFilter implements FilterInterface
                 ->with('errors', ['auth' => 'Bu sayfayı görüntülemek için giriş yapmalısınız.']);
         }
 
-        $user = (new UserModel())->select('id,is_active,role')->find((int) session()->get('user_id'));
+        $userId = (int) session()->get('user_id');
+        $user = cache()->remember('auth_user_' . $userId, 15, static fn () =>
+            (new UserModel())->select('id,is_active,role')->find($userId)
+        );
         if (! $user || (int) ($user['is_active'] ?? 1) !== 1) {
             session()->destroy();
             return redirect()->to(site_url('login'))->with('errors', ['auth'=>'Hesabınız aktif değil.']);

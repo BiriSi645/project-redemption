@@ -36,11 +36,13 @@ class Dashboard extends BaseController
         $calendarLastDay = $calendarFirstDay->modify('last day of this month');
         $calendarEvents = [];
         $calendarTasks = (new TaskModel())
+            ->select('due_date')
             ->where('user_id', $userId)
             ->where('due_date >=', $calendarFirstDay->format('Y-m-d'))
             ->where('due_date <=', $calendarLastDay->format('Y-m-d'))
             ->findAll();
         $calendarEntries = (new JournalEntryModel())
+            ->select('entry_date')
             ->where('user_id', $userId)
             ->where('entry_date >=', $calendarFirstDay->format('Y-m-d'))
             ->where('entry_date <=', $calendarLastDay->format('Y-m-d'))

@@ -9,6 +9,7 @@ use App\Models\UserModel;
 use App\Models\HabitModel;
 use App\Models\HabitCompletionModel;
 use App\Models\NoteCommentModel;
+use App\Models\GameScoreModel;
 
 class Profile extends BaseController
 {
@@ -87,6 +88,7 @@ class Profile extends BaseController
             'habits' => (new HabitModel())->where('user_id',$userId)->findAll(),
             'habit_completions' => (new HabitCompletionModel())->where('user_id',$userId)->findAll(),
             'note_comments' => (new NoteCommentModel())->where('user_id',$userId)->findAll(),
+            'game_scores' => (new GameScoreModel())->where('user_id',$userId)->findAll(),
         ];
 
         if ($format === 'json') {
@@ -103,6 +105,7 @@ class Profile extends BaseController
             foreach ($data['habits'] as $item) fputcsv($stream, ['habit',$item['created_at'],$item['title'],$item['description'],$item['frequency'].':'.$item['target_count'].'/'.((int)$item['is_active']===1?'active':'paused')]);
             foreach ($data['habit_completions'] as $item) fputcsv($stream, ['habit_completion',$item['completed_at'],$habitNames[$item['habit_id']] ?? 'Silinmiş alışkanlık','',$item['period_key']]);
             foreach ($data['note_comments'] as $item) fputcsv($stream, ['note_comment',$item['created_at'],'Not #'.$item['note_id'],$item['content'],'comment']);
+            foreach ($data['game_scores'] as $item) fputcsv($stream, ['game_score',$item['updated_at'],$item['game'],$item['score'],$item['difficulty']]);
             rewind($stream);
             $content = stream_get_contents($stream);
             fclose($stream);
@@ -122,6 +125,10 @@ class Profile extends BaseController
         $lines[] = '=== YAPTIĞIM YORUMLAR ===';
         foreach ($data['note_comments'] as $item) {
             $lines[] = $item['created_at'].' | Not #'.$item['note_id'].PHP_EOL.$item['content'].PHP_EOL;
+        }
+        $lines[] = '=== OYUN REKORLARI ===';
+        foreach ($data['game_scores'] as $item) {
+            $lines[] = $item['updated_at'].' | '.$item['game'].' | '.$item['difficulty'].' | '.$item['score'];
         }
         return $this->response->download('project-redemption-data.txt', implode(PHP_EOL,$lines))->setContentType('text/plain');
     }

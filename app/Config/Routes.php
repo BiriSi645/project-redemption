@@ -8,6 +8,7 @@ $routes->get('login', 'Auth::login');
 $routes->post('login', 'Auth::storeLogin');
 $routes->get('register', 'Auth::register');
 $routes->post('register', 'Auth::storeRegister');
+$routes->get('system/version', 'UpdateStatus::version');
 
 $routes->group('', ['filter' => 'auth'], static function ($routes) {
     $routes->post('logout', 'Auth::logout');
@@ -41,6 +42,18 @@ $routes->group('', ['filter' => 'auth'], static function ($routes) {
     $routes->post('journal/(:num)', 'Journal::update/$1');
     $routes->post('journal/(:num)/delete', 'Journal::delete/$1');
     $routes->get('timer', 'Timer::index');
+    $routes->get('games', 'Games::index');
+    $routes->get('games/snake', 'Games::snake');
+    $routes->get('games/minesweeper', 'Games::minesweeper');
+    $routes->get('games/sudoku', 'Games::sudoku');
+    $routes->post('games/score', 'Games::saveScore');
+    $routes->get('games/multiplayer', 'GameRooms::lobby');
+    $routes->post('games/multiplayer/create', 'GameRooms::create');
+    $routes->post('games/multiplayer/join', 'GameRooms::join');
+    $routes->get('games/room/(:alphanum)', 'GameRooms::show/$1');
+    $routes->get('games/room/(:alphanum)/state', 'GameRooms::state/$1');
+    $routes->get('games/room/(:alphanum)/version', 'GameRooms::version/$1');
+    $routes->post('games/room/(:alphanum)/move', 'GameRooms::move/$1');
     $routes->get('notes', 'Notes::index');
     $routes->get('notes/create', 'Notes::create');
     $routes->post('notes', 'Notes::store');

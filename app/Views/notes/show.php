@@ -30,7 +30,7 @@
 
 <section id="comments" class="comments-section">
     <div class="comments-heading">
-        <h2>Yorumlar <span><?= count($comments) ?></span></h2>
+        <h2>Yorumlar <span><?= (int) $commentsTotal ?></span></h2>
     </div>
 
     <?php if ($errors = session()->getFlashdata('errors')): ?>
@@ -64,6 +64,7 @@
                 </article>
             <?php endforeach; ?>
         </div>
+        <?= $commentsPager->links('comments') ?>
     <?php endif; ?>
 </section>
 

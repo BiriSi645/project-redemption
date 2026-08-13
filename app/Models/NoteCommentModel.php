@@ -29,12 +29,12 @@ class NoteCommentModel extends Model
         ],
     ];
 
-    public function getForNote(int $noteId): array
+    public function getForNote(int $noteId, int $perPage = 20): array
     {
         return $this->select('note_comments.*, users.username')
             ->join('users', 'users.id = note_comments.user_id', 'left')
             ->where('note_comments.note_id', $noteId)
-            ->orderBy('note_comments.created_at', 'ASC')
-            ->findAll();
+            ->orderBy('note_comments.created_at', 'DESC')
+            ->paginate($perPage, 'comments');
     }
 }

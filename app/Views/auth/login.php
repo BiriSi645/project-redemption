@@ -77,5 +77,6 @@
         });
     })();
 </script>
+<?= view('partials/update_notifier', ['codeVersion' => (new \App\Libraries\CodeVersion())->current()]) ?>
 </body>
 </html>

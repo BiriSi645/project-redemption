@@ -43,12 +43,10 @@ class HabitModel extends Model
         $periodKey = "CASE habits.frequency WHEN 'weekly' THEN {$weeklyKey} WHEN 'monthly' THEN {$monthlyKey} ELSE {$dailyKey} END";
 
         $builder = $this->select('habits.*')
-            ->select('COUNT(habit_completions.id) AS total_completions', false)
-            ->select("SUM(CASE WHEN habit_completions.period_key = ({$periodKey}) THEN 1 ELSE 0 END) AS completed_count", false)
-            ->select("MAX(CASE WHEN habit_completions.completed_on = {$escapedToday} THEN 1 ELSE 0 END) AS completed_today", false)
-            ->join('habit_completions', 'habit_completions.habit_id = habits.id AND habit_completions.user_id = habits.user_id', 'left')
+            ->select('(SELECT COUNT(*) FROM habit_completions hc_total WHERE hc_total.habit_id = habits.id) AS total_completions', false)
+            ->select("(SELECT COUNT(*) FROM habit_completions hc_period WHERE hc_period.habit_id = habits.id AND hc_period.period_key = ({$periodKey})) AS completed_count", false)
+            ->select("EXISTS(SELECT 1 FROM habit_completions hc_today WHERE hc_today.habit_id = habits.id AND hc_today.completed_on = {$escapedToday}) AS completed_today", false)
             ->where('habits.user_id', $userId)
-            ->groupBy('habits.id, habits.user_id, habits.title, habits.description, habits.frequency, habits.target_count, habits.is_active, habits.created_at, habits.updated_at', false)
             ->orderBy('habits.is_active', 'DESC')
             ->orderBy('habits.created_at', 'DESC');
 

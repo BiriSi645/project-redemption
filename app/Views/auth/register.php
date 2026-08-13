@@ -53,5 +53,6 @@
     <p class="footer">Zaten hesabınız var mı? <a href="<?= site_url('login') ?>">Giriş yapın</a></p>
 </main>
 <footer class="site-footer">Made with <span class="heart" aria-label="love">♥</span> by Halide.</footer>
+<?= view('partials/update_notifier', ['codeVersion' => (new \App\Libraries\CodeVersion())->current()]) ?>
 </body>
 </html>

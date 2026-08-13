@@ -122,6 +122,8 @@ class Admin extends BaseController
         }
 
         $userModel->skipValidation(true)->update($id, ['role' => $role]);
+        cache()->delete('auth_user_' . $id);
+        cache()->delete('admin_dashboard_summary_v1');
 
         return redirect()->to(site_url('admin/users'))->with('success', 'Kullanıcı rolü güncellendi.');
     }
@@ -138,6 +140,8 @@ class Admin extends BaseController
         }
 
         $userModel->skipValidation(true)->update($id, ['is_active' => (int) $user['is_active'] === 1 ? 0 : 1]);
+        cache()->delete('auth_user_' . $id);
+        cache()->delete('admin_dashboard_summary_v1');
 
         return redirect()->to(site_url('admin/users'))->with('success', 'Hesap durumu güncellendi.');
     }

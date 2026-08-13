@@ -34,6 +34,7 @@ class Notes extends BaseController
     public function show(int $id)
     {
         $note = $this->findVisibleNote($id);
+        $commentModel = new NoteCommentModel();
 
         return view('notes/show', [
             'title'     => $note['title'],
@@ -41,7 +42,9 @@ class Notes extends BaseController
             'isOwner'   => (int) $note['user_id'] === (int) session()->get('user_id'),
             'canDelete' => (int) $note['user_id'] === (int) session()->get('user_id')
                 || session()->get('role') === 'admin',
-            'comments'  => (new NoteCommentModel())->getForNote($id),
+            'comments'  => $commentModel->getForNote($id),
+            'commentsPager' => $commentModel->pager,
+            'commentsTotal' => (new NoteCommentModel())->where('note_id', $id)->countAllResults(),
             'userId'    => (int) session()->get('user_id'),
             'isAdmin'   => session()->get('role') === 'admin',
         ]);
