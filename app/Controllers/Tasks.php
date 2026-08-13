@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Models\TaskModel;
+use App\Models\NotificationModel;
 use CodeIgniter\Exceptions\PageNotFoundException;
 
 class Tasks extends BaseController
@@ -71,6 +72,7 @@ class Tasks extends BaseController
         if (! $taskModel->update($id, $this->taskData())) {
             return redirect()->back()->withInput()->with('errors', $taskModel->errors());
         }
+        (new NotificationModel())->where('task_id', $id)->where('type', 'task_due')->delete();
 
         return redirect()->to(site_url('tasks'))->with('success', 'Görev güncellendi.');
     }
@@ -84,6 +86,9 @@ class Tasks extends BaseController
             'status'       => $completed ? 'completed' : 'pending',
             'completed_at' => $completed ? date('Y-m-d H:i:s') : null,
         ]);
+        if ($completed) {
+            (new NotificationModel())->where('task_id', $id)->where('type', 'task_due')->delete();
+        }
 
         return redirect()->back()->with(
             'success',
@@ -95,6 +100,7 @@ class Tasks extends BaseController
     {
         $this->findOwnedTask($id);
         (new TaskModel())->delete($id);
+        (new NotificationModel())->where('task_id', $id)->delete();
 
         return redirect()->to(site_url('tasks'))->with('success', 'Görev silindi.');
     }

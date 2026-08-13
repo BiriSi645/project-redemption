@@ -3,6 +3,9 @@
 namespace App\Controllers;
 
 use App\Libraries\GameRoomService;
+use App\Models\GameRoomModel;
+use App\Models\NotificationModel;
+use App\Models\UserModel;
 use RuntimeException;
 
 class GameRooms extends BaseController
@@ -36,7 +39,14 @@ class GameRooms extends BaseController
     {
         try {
             $room = (new GameRoomService())->getForPlayer($code, (int) session()->get('user_id'));
-            return view('games/room', ['title' => 'Oyun Odası ' . $room['code'], 'room' => $room]);
+            $activeUsers = [];
+            if ($room['status'] === 'waiting' && (int) $room['host']['id'] === (int) session()->get('user_id')) {
+                $activeUsers = array_values(array_filter(
+                    (new UserModel())->activeUsers(),
+                    static fn (array $user): bool => (int) $user['id'] !== (int) session()->get('user_id')
+                ));
+            }
+            return view('games/room', ['title' => 'Oyun Odası ' . $room['code'], 'room' => $room, 'activeUsers' => $activeUsers]);
         } catch (RuntimeException $e) {
             return redirect()->to(site_url('games/multiplayer'))->with('error', $e->getMessage());
         }
@@ -74,5 +84,53 @@ class GameRooms extends BaseController
         } catch (RuntimeException $e) {
             return $this->response->setStatusCode(422)->setJSON(['success' => false, 'message' => $e->getMessage(), 'csrfHash' => csrf_hash()]);
         }
+    }
+
+    public function invite(string $code, int $userId)
+    {
+        $currentUserId = (int) session()->get('user_id');
+        $room = (new GameRoomModel())->withPlayers($code);
+        if (! $room || (int) $room['host_user_id'] !== $currentUserId || $room['status'] !== 'waiting' || $room['guest_user_id'] !== null) {
+            return redirect()->back()->with('error', 'Bu odadan davet gönderemezsiniz.');
+        }
+
+        $target = (new UserModel())->where('id', $userId)->where('is_active', 1)
+            ->where('last_seen_at >=', date('Y-m-d H:i:s', strtotime('-90 seconds')))->first();
+        if (! $target || $userId === $currentUserId) {
+            return redirect()->back()->with('error', 'Davet edilecek kullanıcı şu anda aktif değil.');
+        }
+
+        $key = 'game_invite:' . $room['id'] . ':' . $userId;
+        $notificationModel = new NotificationModel();
+        $existing = $notificationModel->where('notification_key', $key)->first();
+        if ($existing && empty($existing['read_at'])) {
+            return redirect()->back()->with('success', $target['username'] . ' kullanıcısının bekleyen bir daveti zaten var.');
+        }
+        if ($existing) {
+            $notificationModel->delete($existing['id']);
+        }
+        $data = [
+            'user_id' => $userId,
+            'actor_user_id' => $currentUserId,
+            'game_room_id' => (int) $room['id'],
+            'type' => 'game_invite',
+            'message' => session()->get('username') . ' sizi ' . ($room['game'] === 'sudoku' ? 'Sudoku' : 'Mayın Tarlası') . ' oyununa davet etti.',
+            'target_path' => 'games/room/' . $room['code'],
+            'notification_key' => $key,
+            'read_at' => null,
+            'created_at' => date('Y-m-d H:i:s'),
+        ];
+        $notificationModel->insert($data);
+
+        return redirect()->back()->with('success', $target['username'] . ' kullanıcısına oyun daveti gönderildi.');
+    }
+
+    public function leave(string $code)
+    {
+        (new GameRoomService())->leave($code, (int) session()->get('user_id'));
+        if ($this->request->isAJAX()) {
+            return $this->response->setJSON(['success' => true, 'csrfHash' => csrf_hash()]);
+        }
+        return redirect()->to(site_url('games/multiplayer'));
     }
 }

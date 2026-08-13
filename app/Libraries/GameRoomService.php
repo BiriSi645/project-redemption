@@ -15,7 +15,7 @@ class GameRoomService
 
     public function create(int $userId, string $game, string $difficulty): array
     {
-        $this->pruneExpiredRooms();
+        $this->cleanupInactiveRooms();
         if (! in_array($game, ['sudoku', 'minesweeper'], true) || ! SudokuPuzzles::has($difficulty)) {
             throw new RuntimeException('Geçersiz oyun veya zorluk seviyesi.');
         }
@@ -27,7 +27,7 @@ class GameRoomService
             try {
                 $id = $model->insert([
                     'code' => $code, 'game' => $game, 'difficulty' => $difficulty,
-                    'host_user_id' => $userId, 'status' => 'waiting',
+                    'host_user_id' => $userId, 'host_room_seen_at' => date('Y-m-d H:i:s'), 'status' => 'waiting',
                     'state' => json_encode($state, JSON_UNESCAPED_UNICODE), 'version' => 1,
                 ], true);
                 if ($id !== false) {
@@ -42,6 +42,7 @@ class GameRoomService
 
     public function join(int $userId, string $code): array
     {
+        $this->cleanupInactiveRooms();
         $code = strtoupper(trim($code));
         $db = db_connect();
         $db->transBegin();
@@ -59,9 +60,19 @@ class GameRoomService
             $state['startedAt'] = time();
             $db->table('game_rooms')->where('id', $room['id'])->update([
                 'guest_user_id' => $userId, 'status' => 'playing',
+                'guest_room_seen_at' => date('Y-m-d H:i:s'),
                 'state' => json_encode($state, JSON_UNESCAPED_UNICODE),
                 'version' => (int) $room['version'] + 1, 'updated_at' => date('Y-m-d H:i:s'),
             ]);
+            $db->table('notifications')->where('game_room_id', $room['id'])->where('type', 'game_invite')
+                ->where('user_id !=', $userId)->delete();
+            $db->table('notifications')->where('game_room_id', $room['id'])->where('type', 'game_invite')
+                ->where('user_id', $userId)->set(['read_at' => date('Y-m-d H:i:s')])->update();
+        }
+        if ((int) $room['host_user_id'] === $userId) {
+            $db->table('game_rooms')->where('id', $room['id'])->update(['host_room_seen_at' => date('Y-m-d H:i:s')]);
+        } elseif ($room['guest_user_id'] !== null && (int) $room['guest_user_id'] === $userId) {
+            $db->table('game_rooms')->where('id', $room['id'])->update(['guest_room_seen_at' => date('Y-m-d H:i:s')]);
         }
         $db->transCommit();
         return (new GameRoomModel())->withPlayers($code);
@@ -69,24 +80,29 @@ class GameRoomService
 
     public function getForPlayer(string $code, int $userId): array
     {
+        $this->cleanupInactiveRooms();
         $room = (new GameRoomModel())->withPlayers($code);
         $this->assertParticipant($room, $userId);
+        $this->touchRoomPresence((int) $room['id'], (int) $room['host_user_id'], $userId);
         return $this->publicRoom($room, $userId);
     }
 
     public function versionForPlayer(string $code, int $userId): array
     {
+        $this->cleanupInactiveRooms();
         $room = (new GameRoomModel())
-            ->select('code, host_user_id, guest_user_id, status, version')
+            ->select('id, code, host_user_id, guest_user_id, status, version')
             ->where('code', strtoupper($code))
             ->first();
         $this->assertParticipant($room, $userId);
+        $this->touchRoomPresence((int) $room['id'], (int) $room['host_user_id'], $userId);
 
         return ['version' => (int) $room['version'], 'status' => $room['status']];
     }
 
     public function move(string $code, int $userId, array $input): array
     {
+        $this->cleanupInactiveRooms();
         $db = db_connect();
         $db->transBegin();
         try {
@@ -102,9 +118,10 @@ class GameRoomService
             $this->minesMove($state, $userId, $input);
         }
         $status = ! empty($state['completed']) ? 'completed' : 'playing';
+        $presenceField = (int) $room['host_user_id'] === $userId ? 'host_room_seen_at' : 'guest_room_seen_at';
         $db->table('game_rooms')->where('id', $room['id'])->update([
             'state' => json_encode($state, JSON_UNESCAPED_UNICODE), 'status' => $status,
-            'version' => (int) $room['version'] + 1, 'updated_at' => date('Y-m-d H:i:s'),
+            'version' => (int) $room['version'] + 1, 'updated_at' => date('Y-m-d H:i:s'), $presenceField => date('Y-m-d H:i:s'),
         ]);
         $db->transCommit();
         $fresh = (new GameRoomModel())->withPlayers(strtoupper($code));
@@ -113,6 +130,41 @@ class GameRoomService
             $db->transRollback();
             throw $e;
         }
+    }
+
+    public function leave(string $code, int $userId): void
+    {
+        $room = (new GameRoomModel())->where('code', strtoupper($code))->first();
+        if (! $room) {
+            return;
+        }
+        $this->assertParticipant($room, $userId);
+        $field = (int) $room['host_user_id'] === $userId ? 'host_room_seen_at' : 'guest_room_seen_at';
+        (new GameRoomModel())->skipValidation(true)->update($room['id'], [$field => null]);
+        $this->cleanupInactiveRooms(true);
+    }
+
+    public function cleanupInactiveRooms(bool $force = false): void
+    {
+        $cache = cache();
+        if (! $force && $cache->get('game_rooms_presence_cleanup')) {
+            return;
+        }
+
+        $cutoff = date('Y-m-d H:i:s', strtotime('-25 seconds'));
+        $rooms = (new GameRoomModel())->select('id, status, guest_user_id, host_room_seen_at, guest_room_seen_at, updated_at')->findAll();
+        $deleteIds = [];
+        foreach ($rooms as $room) {
+            $hostGone = empty($room['host_room_seen_at']) || $room['host_room_seen_at'] < $cutoff;
+            $guestGone = empty($room['guest_user_id']) || empty($room['guest_room_seen_at']) || $room['guest_room_seen_at'] < $cutoff;
+            $completedCanBeDeleted = $room['status'] === 'completed'
+                && (($hostGone && $guestGone) || (! empty($room['updated_at']) && $room['updated_at'] < $cutoff));
+            if ($completedCanBeDeleted || ($room['status'] === 'waiting' && $hostGone) || ($room['status'] === 'playing' && $hostGone && $guestGone)) {
+                $deleteIds[] = (int) $room['id'];
+            }
+        }
+        $this->deleteRooms($deleteIds);
+        $cache->save('game_rooms_presence_cleanup', '1', 10);
     }
 
     private function newSudoku(string $difficulty): array
@@ -280,17 +332,22 @@ class GameRoomService
         return $code;
     }
 
-    private function pruneExpiredRooms(): void
+    private function touchRoomPresence(int $roomId, int $hostUserId, int $userId): void
     {
-        $cache = cache();
-        if ($cache->get('game_rooms_pruned_today')) return;
+        $field = $hostUserId === $userId ? 'host_room_seen_at' : 'guest_room_seen_at';
+        (new GameRoomModel())->skipValidation(true)->update($roomId, [$field => date('Y-m-d H:i:s')]);
+    }
 
+    private function deleteRooms(array $roomIds): void
+    {
+        if ($roomIds === []) {
+            return;
+        }
         $db = db_connect();
-        $db->table('game_rooms')->groupStart()
-            ->where('status', 'waiting')->where('updated_at <', date('Y-m-d H:i:s', strtotime('-24 hours')))
-            ->groupEnd()->orGroupStart()
-            ->whereIn('status', ['playing', 'completed'])->where('updated_at <', date('Y-m-d H:i:s', strtotime('-7 days')))
-            ->groupEnd()->delete();
-        $cache->save('game_rooms_pruned_today', '1', 86400);
+        $db->transStart();
+        $db->table('notifications')->whereIn('game_room_id', $roomIds)->delete();
+        $db->table('game_rooms')->whereIn('id', $roomIds)->set(['status' => 'completed'])->update();
+        $db->table('game_rooms')->whereIn('id', $roomIds)->delete();
+        $db->transComplete();
     }
 }

@@ -28,6 +28,11 @@ class AuditLogger
     public static function describePath(string $path): array
     {
         $rules = [
+            '#^messages/start/\d+$#' => ['message.start', 'Özel konuşma başlatıldı'],
+            '#^messages/\d+/send$#' => ['message.send', 'Özel mesaj gönderildi'],
+            '#^messages/\d+/delete/\d+$#' => ['message.delete', 'Özel mesaj kullanıcının görünümünden silindi'],
+            '#^messages/block/\d+$#' => ['message.block', 'Kullanıcı mesajlaşmada engellendi'],
+            '#^messages/unblock/\d+$#' => ['message.unblock', 'Kullanıcının mesajlaşma engeli kaldırıldı'],
             '#^admin/users/\d+/role$#' => ['admin.role', 'Kullanıcı rolü değiştirildi'],
             '#^admin/users/\d+/toggle$#' => ['admin.user_status', 'Kullanıcı hesap durumu değiştirildi'],
             '#^notes/\d+/comments/\d+/delete$#' => ['comment.delete', 'Not yorumu silindi'],

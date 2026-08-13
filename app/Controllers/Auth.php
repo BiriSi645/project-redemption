@@ -106,6 +106,7 @@ class Auth extends BaseController
             'notifications_enabled' => (int) ($user['notifications_enabled'] ?? 0),
             'logged_in' => true,
         ]);
+        (new UserModel())->skipValidation(true)->update((int) $user['id'], ['last_seen_at' => date('Y-m-d H:i:s')]);
 
         AuditLogger::record((int) $user['id'], 'auth.login', 'Kullanıcı giriş yaptı', 'POST', 'login', 200);
 
@@ -114,7 +115,10 @@ class Auth extends BaseController
 
     public function logout()
     {
-        AuditLogger::record((int) session()->get('user_id'), 'auth.logout', 'Kullanıcı çıkış yaptı', 'POST', 'logout', 200);
+        $userId = (int) session()->get('user_id');
+        AuditLogger::record($userId, 'auth.logout', 'Kullanıcı çıkış yaptı', 'POST', 'logout', 200);
+        (new UserModel())->skipValidation(true)->update($userId, ['last_seen_at' => null]);
+        cache()->delete('presence_touch_' . $userId);
         session()->destroy();
 
         return redirect()->to(site_url('login'));

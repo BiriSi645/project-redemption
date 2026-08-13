@@ -1,4 +1,8 @@
-<?php $selectedTheme = session()->get('theme') ?? 'system'; ?>
+<?php
+$selectedTheme = session()->get('theme') ?? 'system';
+$unreadNotificationCount = (new \App\Models\NotificationModel())->unreadCount((int) session()->get('user_id'));
+$unreadMessageCount = (new \App\Models\DirectConversationModel())->unreadCount((int) session()->get('user_id'));
+?>
 <!DOCTYPE html>
 <html lang="tr" data-theme="<?= esc($selectedTheme, 'attr') ?>">
 <?php if ($selectedTheme === 'system'): ?><script>document.documentElement.dataset.theme=matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';</script><?php endif; ?>
@@ -13,6 +17,8 @@
         .sidebar { width: 240px; padding: 24px 16px; background: #111827; color: #fff; }
         .sidebar-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
         .sidebar h2 { margin: 0 0 24px; }
+        .sidebar .sidebar-brand { display:inline; padding:0; margin:0; color:inherit; text-decoration:none; }
+        .sidebar .sidebar-brand:hover { background:transparent; color:#fff; }
         .menu-toggle { display: none; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 0; border: 1px solid #374151; border-radius: 9px; background: #1f2937; color: #fff; cursor: pointer; }
         .menu-toggle:hover { background: #374151; }
         .menu-toggle:focus-visible { outline: 3px solid #60a5fa; outline-offset: 2px; }
@@ -26,9 +32,12 @@
         .menu-toggle[aria-expanded="true"] .menu-icon::after { top: 0; transform: rotate(-45deg); }
         .sidebar a { display: block; padding: 10px 12px; margin-bottom: 6px; border-radius: 8px; color: #d1d5db; text-decoration: none; }
         .sidebar a:hover { background: #1f2937; color: #fff; }
+        .notification-badge { display:inline-grid; min-width:20px; height:20px; margin-left:6px; padding:0 6px; place-items:center; border-radius:999px; background:#dc2626; color:#fff; font-size:11px; font-weight:800; }
         .main { display: flex; flex-direction: column; flex: 1; min-width: 0; padding: 32px; }
         .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
-        .topbar-account { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+        .topbar-account { position:relative; display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+        .message-popover-wrap,.notification-popover-wrap{position:relative}.message-icon-button{position:relative;display:grid;width:42px;height:42px;padding:0;place-items:center;border:1px solid #d1d5db;border-radius:50%;background:#fff;color:#374151;font-size:19px;cursor:pointer}.message-icon-button:hover,.message-icon-button[aria-expanded="true"]{border-color:#93c5fd;background:#eff6ff;color:#1d4ed8}.message-icon-button .notification-badge{position:absolute;top:-5px;right:-7px;margin:0}.message-popover{position:absolute;top:50px;right:0;z-index:2000;width:min(380px,calc(100vw - 36px));overflow:hidden;border:1px solid #d1d5db;border-radius:14px;background:#fff;box-shadow:0 18px 45px rgba(15,23,42,.22);text-align:left}.notification-popover{right:-52px}.message-popover[hidden]{display:none}.message-popover-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;border-bottom:1px solid #e5e7eb}.message-popover-head strong{font-size:17px}.message-popover-head a,.message-popover-all{color:#2563eb;text-decoration:none;font-size:13px;font-weight:700}.message-preview-list{max-height:390px;overflow-y:auto}.message-preview-item{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid #eef0f3;color:inherit;text-decoration:none}.message-preview-item:hover{background:#f8fafc}.message-preview-item.unread{background:#eff6ff}.message-preview-avatar{display:grid;width:39px;height:39px;place-items:center;border-radius:50%;background:linear-gradient(135deg,#2563eb,#7c3aed);color:#fff;font-weight:800}.notification-preview-avatar{background:#eef2ff;color:#4338ca}.message-preview-copy{display:grid;min-width:0;gap:3px}.message-preview-copy strong,.message-preview-copy span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.notification-preview-copy span{white-space:normal;line-height:1.35}.message-preview-copy span,.message-preview-meta{color:#6b7280;font-size:12px}.message-preview-meta{display:grid;justify-items:end;gap:5px;white-space:nowrap}.message-preview-meta b{display:grid;min-width:20px;height:20px;padding:0 5px;place-items:center;border-radius:999px;background:#2563eb;color:#fff;font-size:10px}.message-popover-state{padding:30px 18px;color:#6b7280;text-align:center}.message-popover-all{display:block;padding:12px;text-align:center;background:#f8fafc}
+        .live-toast-stack{position:fixed;right:20px;bottom:20px;z-index:5000;display:grid;width:min(360px,calc(100vw - 32px));gap:10px}.live-toast{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;padding:14px 15px;border:1px solid #bfdbfe;border-radius:13px;background:#fff;box-shadow:0 14px 36px rgba(15,23,42,.24);animation:live-toast-in .2s ease}.live-toast strong,.live-toast p{grid-column:1;margin:0}.live-toast p{overflow-wrap:anywhere;color:#4b5563;font-size:13px;line-height:1.45}.live-toast a{grid-column:1;justify-self:start;color:#2563eb;font-size:13px;font-weight:700;text-decoration:none}.live-toast button{grid-column:2;grid-row:1;width:28px;height:28px;padding:0;border:0;border-radius:50%;background:#f3f4f6;color:#4b5563;cursor:pointer}.live-toast.leaving{opacity:0;transform:translateY(8px);transition:.18s ease}@keyframes live-toast-in{from{opacity:0;transform:translateY(8px)}}
         .user { color: #4b5563; }
         .logout { padding: 8px 12px; border: 0; border-radius: 8px; background: #dc2626; color: #fff; cursor: pointer; }
         .content { padding: 24px; border-radius: 14px; background: #fff; }
@@ -103,6 +112,8 @@
         html[data-theme="dark"] .calendar-day.selected { background:#422006; }
         html[data-theme="dark"] .calendar-grid { border-color:#334155; }
         html[data-theme="dark"] .day-number, html[data-theme="dark"] .calendar-filter-summary, html[data-theme="dark"] .calendar-legend { color:#cbd5e1; }
+        html[data-theme="dark"] .message-icon-button,html[data-theme="dark"] .message-popover{background:#1e293b;border-color:#475569;color:#e5e7eb}html[data-theme="dark"] .message-icon-button:hover,html[data-theme="dark"] .message-icon-button[aria-expanded="true"],html[data-theme="dark"] .message-preview-item.unread{background:#172554}html[data-theme="dark"] .message-popover-head,html[data-theme="dark"] .message-preview-item{border-color:#334155}html[data-theme="dark"] .message-preview-item:hover,html[data-theme="dark"] .message-popover-all{background:#334155}
+        html[data-theme="dark"] .live-toast{border-color:#475569;background:#1e293b;color:#e5e7eb}html[data-theme="dark"] .live-toast p{color:#cbd5e1}html[data-theme="dark"] .live-toast button{background:#334155;color:#e5e7eb}
         @media (prefers-color-scheme: dark) { html[data-theme="system"] body { background:#0f172a; color:#e5e7eb; } html[data-theme="system"] .content { background:#1e293b; } }
         @media (max-width:760px) { .content-filter { grid-template-columns:1fr !important; } .topbar { align-items:flex-start; flex-direction:column; } .topbar-account { width:100%; align-self:flex-end; justify-content:flex-end; flex-wrap:wrap; text-align:right; } }
         @media (max-width: 760px) {
@@ -122,7 +133,7 @@
 <div class="app">
     <aside class="sidebar">
         <div class="sidebar-header">
-            <h2>Project Redemption</h2>
+            <h2><a class="sidebar-brand" href="<?= site_url('dashboard') ?>">Project Redemption</a></h2>
             <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="sidebar-navigation" aria-label="Menüyü aç">
                 <span class="menu-icon" aria-hidden="true"></span>
             </button>
@@ -148,7 +159,27 @@
         <div class="topbar">
             <strong><?= esc($title ?? 'Project Redemption') ?></strong>
             <div class="topbar-account">
-                <span class="user"><?= esc(session()->get('username')) ?><?= session()->get('role') === 'admin' ? ' · Admin' : '' ?></span>
+                <div class="notification-popover-wrap">
+                    <button class="message-icon-button notification-icon-button" type="button" aria-label="Bildirimleri aç" aria-expanded="false" aria-controls="notification-popover" data-notification-button data-notification-nav data-preview-url="<?= site_url('notifications/preview') ?>">
+                        <span aria-hidden="true">🔔</span><?php if ($unreadNotificationCount > 0): ?><span class="notification-badge"><?= $unreadNotificationCount > 99 ? '99+' : $unreadNotificationCount ?></span><?php endif; ?>
+                    </button>
+                    <section class="message-popover notification-popover" id="notification-popover" hidden aria-label="Son bildirimler">
+                        <header class="message-popover-head"><strong>Bildirimler</strong><a href="<?= site_url('notifications') ?>">Tümünü gör</a></header>
+                        <div class="message-preview-list" data-notification-preview-list><div class="message-popover-state">Bildirimler yükleniyor…</div></div>
+                        <a class="message-popover-all" href="<?= site_url('notifications') ?>">Tüm bildirimleri aç →</a>
+                    </section>
+                </div>
+                <div class="message-popover-wrap">
+                    <button class="message-icon-button" type="button" aria-label="Mesajları aç" aria-expanded="false" aria-controls="message-popover" data-message-nav data-preview-url="<?= site_url('messages/preview') ?>">
+                        <span aria-hidden="true">✉</span><?php if ($unreadMessageCount > 0): ?><span class="notification-badge"><?= $unreadMessageCount > 99 ? '99+' : $unreadMessageCount ?></span><?php endif; ?>
+                    </button>
+                    <section class="message-popover" id="message-popover" hidden aria-label="Son mesajlar">
+                        <header class="message-popover-head"><strong>Mesajlar</strong><a href="<?= site_url('messages') ?>">Tümünü gör</a></header>
+                        <div class="message-preview-list" data-message-preview-list><div class="message-popover-state">Konuşmalar yükleniyor…</div></div>
+                        <a class="message-popover-all" href="<?= site_url('messages') ?>">Tüm mesajları aç →</a>
+                    </section>
+                </div>
+                <a class="user" href="<?= site_url('users/' . session()->get('user_id')) ?>" style="text-decoration:none"><?= esc(session()->get('username')) ?><?= session()->get('role') === 'admin' ? ' · Admin' : '' ?></a>
                 <a class="profile-link" href="<?= site_url('profile') ?>">Ayarlar</a>
                 <form method="post" action="<?= site_url('logout') ?>" style="display:inline">
                     <?= csrf_field() ?>
@@ -161,6 +192,9 @@
             <?php if ($success = session()->getFlashdata('success')): ?>
                 <div class="alert success"><?= esc($success) ?></div>
             <?php endif; ?>
+            <?php if ($error = session()->getFlashdata('error')): ?>
+                <div class="alert error"><?= esc($error) ?></div>
+            <?php endif; ?>
             <?= $this->renderSection('content') ?>
         </div>
 
@@ -169,7 +203,11 @@
         </footer>
     </main>
 </div>
+<div class="live-toast-stack" data-live-toast-stack data-status-url="<?= site_url('system/live-updates') ?>" aria-live="polite" aria-atomic="false"></div>
 <script src="<?= base_url('js/speech-input.js') ?>"></script>
+<script src="<?= base_url('js/message-popover.js') ?>"></script>
+<script src="<?= base_url('js/notification-popover.js') ?>"></script>
+<script src="<?= base_url('js/live-updates.js') ?>"></script>
 <?php if ($draftKey = session()->getFlashdata('clearJournalDraft')): ?>
 <script>try{localStorage.removeItem(<?= json_encode($draftKey) ?>)}catch(error){/* Depolama kullanılamıyorsa kayıt yine tamamlanmıştır. */}</script>
 <?php endif; ?>
@@ -201,6 +239,16 @@
     })();
 </script>
 <script>localStorage.setItem('project-redemption-theme', <?= json_encode($selectedTheme) ?>);localStorage.setItem('project-redemption-theme-default-v2','1');</script>
+<script>
+    (() => {
+        const heartbeat = () => {
+            fetch(<?= json_encode(site_url('system/heartbeat')) ?>, {cache:'no-store',headers:{'X-Requested-With':'XMLHttpRequest'}}).catch(() => {});
+        };
+        heartbeat();
+        window.setInterval(heartbeat, 30000);
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) heartbeat(); });
+    })();
+</script>
 <?= view('partials/update_notifier', ['codeVersion' => (new \App\Libraries\CodeVersion())->current()]) ?>
 </body>
 </html>

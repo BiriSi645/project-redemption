@@ -1,7 +1,7 @@
 (() => {
     'use strict';
     const root=document.getElementById('shared-game'),board=document.getElementById('shared-board'),statusEl=document.getElementById('room-status');if(!root||!board)return;
-    let room=JSON.parse(document.getElementById('initial-room-data').textContent),selected=null,mode='reveal',sending=false,pollTimer=null,failures=0;
+    let room=JSON.parse(document.getElementById('initial-room-data').textContent),selected=null,mode='reveal',sending=false,pollTimer=null,failures=0,leaving=false;
     function playerClass(owner){if(!owner)return'';return Number(owner)===Number(room.host.id)?'host-move':'guest-move';}
     function updateStatus(){const guest=document.getElementById('guest-name'),legend=document.getElementById('guest-legend');guest.textContent=room.guest?.username||'Bekleniyor…';legend.textContent=room.guest?.username||'Oyuncu 2';statusEl.className=`room-status ${room.status}`;if(room.status==='waiting'){statusEl.textContent=`Arkadaşınızın katılması bekleniyor. Oda kodu: ${room.code}`;}else if(room.status==='completed'){if(room.game==='minesweeper'&&room.state.lost)statusEl.textContent='Bir mayın açıldı. Bu oyun tamamlandı.';else if(room.game==='sudoku'&&room.state.failed)statusEl.textContent='Üç yanlış hakkınızı kullandınız. Oyun bitti.';else{const elapsed=room.state.completedAt&&room.state.startedAt?room.state.completedAt-room.state.startedAt:null;statusEl.textContent=`Tebrikler, oyunu birlikte tamamladınız${elapsed?`! Süre: ${elapsed} sn`:'!'}`;}}else if(room.game==='sudoku'){const mistakes=Number(room.state.mistakes||0);statusEl.textContent=`Oyun başladı — toplam ${3-mistakes} yanlış hakkınız kaldı (${mistakes} / 3).`;}else statusEl.textContent='Oyun başladı — yaptığınız hamle arkadaşınızın ekranında da görünecek.';}
     function render(){updateStatus();room.game==='sudoku'?renderSudoku():renderMines();const controls=document.getElementById('room-controls');controls.style.pointerEvents=room.status==='playing'?'auto':'none';controls.style.opacity=room.status==='playing'?'1':'.5';}
@@ -17,5 +17,7 @@
     async function loadState(){const response=await fetch(root.dataset.stateUrl,{headers:{'X-Requested-With':'XMLHttpRequest'},cache:'no-store'});const result=await response.json();if(response.ok&&result.success){room=result.room;render();}}
     async function poll(){if(sending){schedulePoll();return;}try{const response=await fetch(root.dataset.versionUrl,{headers:{'X-Requested-With':'XMLHttpRequest'},cache:'no-store'});const result=await response.json();if(!response.ok||!result.success)throw new Error();failures=0;if(Number(result.version)!==Number(room.version))await loadState();}catch(error){failures=Math.min(failures+1,4);}finally{schedulePoll();}}
     document.addEventListener('visibilitychange',()=>{if(!document.hidden)schedulePoll(true);else schedulePoll();});
+    document.getElementById('leave-room-form')?.addEventListener('submit',()=>{leaving=true;});
+    window.addEventListener('pagehide',()=>{if(leaving)return;leaving=true;const body=new URLSearchParams({[root.dataset.csrfName]:root.dataset.csrfHash});fetch(root.dataset.leaveUrl,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8','X-Requested-With':'XMLHttpRequest'},body,keepalive:true}).catch(()=>{});},{once:true});
     render();schedulePoll();
 })();

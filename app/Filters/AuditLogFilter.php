@@ -24,7 +24,7 @@ class AuditLogFilter implements FilterInterface
         if (in_array($path, ['login', 'register', 'logout'], true)) {
             return;
         }
-        if ($path === 'games/score' || preg_match('#^games/room/[a-zA-Z0-9]+/move$#', $path)) {
+        if ($path === 'games/score' || preg_match('#^games/room/[a-zA-Z0-9]+/move$#', $path) || preg_match('#^messages/\d+/send$#', $path)) {
             return;
         }
 

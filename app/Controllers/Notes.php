@@ -4,6 +4,8 @@ namespace App\Controllers;
 
 use App\Models\NoteModel;
 use App\Models\NoteCommentModel;
+use App\Models\UserModel;
+use App\Libraries\NoteMentionService;
 use CodeIgniter\Exceptions\PageNotFoundException;
 
 class Notes extends BaseController
@@ -28,6 +30,7 @@ class Notes extends BaseController
             'activeScope' => $scope,
             'userId'  => $userId,
             'isAdmin' => $isAdmin,
+            'activeUsers' => (new UserModel())->activeUsers(),
         ]);
     }
 
@@ -66,9 +69,20 @@ class Notes extends BaseController
             'is_public' => $this->request->getPost('is_public') === '1' ? 1 : 0,
         ];
 
-        if (! $noteModel->insert($data)) {
+        $mentionService = new NoteMentionService();
+        $mentionedUsers = $mentionService->mentionedUsers($data['content'], (int) $data['user_id']);
+        if ($mentionedUsers !== [] && (int) $data['is_public'] !== 1) {
+            return redirect()->back()->withInput()->with('errors', [
+                'mention' => 'Etiketlenen kullanıcıların notu görebilmesi için notu public yapmalısınız.',
+            ]);
+        }
+
+        $noteId = $noteModel->insert($data, true);
+        if (! $noteId) {
             return redirect()->back()->withInput()->with('errors', $noteModel->errors());
         }
+
+        $mentionService->sync((int) $noteId, (int) $data['user_id'], (string) session()->get('username'), $mentionedUsers);
 
         return redirect()->to(site_url('notes'))->with('success', 'Not oluşturuldu.');
     }
@@ -83,7 +97,7 @@ class Notes extends BaseController
 
     public function update(int $id)
     {
-        $this->findOwnedNote($id);
+        $ownedNote = $this->findOwnedNote($id);
         $noteModel = new NoteModel();
         $data = [
             'title'     => trim((string) $this->request->getPost('title')),
@@ -92,9 +106,19 @@ class Notes extends BaseController
             'is_public' => $this->request->getPost('is_public') === '1' ? 1 : 0,
         ];
 
+        $mentionService = new NoteMentionService();
+        $mentionedUsers = $mentionService->mentionedUsers($data['content'], (int) $ownedNote['user_id']);
+        if ($mentionedUsers !== [] && (int) $data['is_public'] !== 1) {
+            return redirect()->back()->withInput()->with('errors', [
+                'mention' => 'Etiketlenen kullanıcıların notu görebilmesi için notu public yapmalısınız.',
+            ]);
+        }
+
         if (! $noteModel->update($id, $data)) {
             return redirect()->back()->withInput()->with('errors', $noteModel->errors());
         }
+
+        $mentionService->sync($id, (int) $ownedNote['user_id'], (string) session()->get('username'), $mentionedUsers);
 
         return redirect()->to(site_url('notes'))->with('success', 'Not güncellendi.');
     }

@@ -16,6 +16,7 @@
 
     <label for="content">Not</label>
     <textarea id="content" name="content" data-speech-input required><?= esc(old('content')) ?></textarea>
+    <small>Bir kullanıcıyı etiketlemek için @kullaniciadi yazın. Etiket içeren not public olmalıdır.</small>
 
     <label for="category">Kategori</label>
     <input id="category" type="text" name="category" value="<?= esc(old('category', 'Genel')) ?>" maxlength="100" placeholder="Örn. İş, Okul, Kişisel" required>

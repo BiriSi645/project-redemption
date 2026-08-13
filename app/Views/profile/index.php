@@ -9,10 +9,9 @@
 
 <div class="settings-grid">
     <section class="settings-card">
-        <h2>Profil</h2>
+        <h2>Hesap ve Görünüm</h2>
         <form method="post" action="<?= site_url('profile') ?>">
             <?= csrf_field() ?>
-            <label for="username">Kullanıcı adı</label><input id="username" name="username" value="<?= esc(old('username',$user['username'])) ?>" required>
             <label for="email">E-posta</label><input id="email" type="email" name="email" value="<?= esc(old('email',$user['email'])) ?>" required>
             <label for="theme">Tema</label>
             <select id="theme" name="theme"><option value="light" <?= $user['theme']==='light'?'selected':'' ?>>Açık</option><option value="dark" <?= $user['theme']==='dark'?'selected':'' ?>>Koyu</option><option value="system" <?= $user['theme']==='system'?'selected':'' ?>>Sistem ayarı</option></select>

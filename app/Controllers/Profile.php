@@ -24,30 +24,27 @@ class Profile extends BaseController
     public function update()
     {
         $userId = (int) session()->get('user_id');
-        $username = trim((string) $this->request->getPost('username'));
         $email = strtolower(trim((string) $this->request->getPost('email')));
         $theme = (string) $this->request->getPost('theme');
 
         $rules = [
-            'username' => "required|min_length[3]|max_length[100]|is_unique[users.username,id,{$userId}]",
             'email' => "required|valid_email|is_unique[users.email,id,{$userId}]",
             'theme' => 'required|in_list[light,dark,system]',
         ];
 
-        if (! $this->validateData(['username'=>$username,'email'=>$email,'theme'=>$theme], $rules)) {
+        if (! $this->validateData(['email'=>$email,'theme'=>$theme], $rules)) {
             return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
         }
 
         $notifications = $this->request->getPost('notifications_enabled') === '1' ? 1 : 0;
         (new UserModel())->skipValidation(true)->update($userId, [
-            'username' => $username,
             'email' => $email,
             'theme' => $theme,
             'language' => 'tr',
             'notifications_enabled' => $notifications,
         ]);
 
-        session()->set(['username'=>$username,'email'=>$email,'theme'=>$theme,'notifications_enabled'=>$notifications]);
+        session()->set(['email'=>$email,'theme'=>$theme,'notifications_enabled'=>$notifications]);
 
         return redirect()->to(site_url('profile'))->with('success', 'Profil ayarları güncellendi.');
     }
@@ -81,7 +78,7 @@ class Profile extends BaseController
         $userId = (int) session()->get('user_id');
         $data = [
             'exported_at' => date(DATE_ATOM),
-            'user' => (new UserModel())->select('username,email,created_at')->find($userId),
+            'user' => (new UserModel())->select('username,bio,email,created_at')->find($userId),
             'notes' => (new NoteModel())->where('user_id',$userId)->findAll(),
             'tasks' => (new TaskModel())->where('user_id',$userId)->findAll(),
             'journal_entries' => (new JournalEntryModel())->where('user_id',$userId)->findAll(),

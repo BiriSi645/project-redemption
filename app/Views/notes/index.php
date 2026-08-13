@@ -22,6 +22,8 @@ $scopeUrl = static fn (string $scope): string => site_url('notes') . '?' . http_
         <a class="button new-note-button" href="<?= site_url('notes/create') ?>">＋ Not paylaş</a>
     </header>
 
+    <?= view('partials/active_users', ['activeUsers' => $activeUsers]) ?>
+
     <nav class="feed-tabs" aria-label="Not görünümü">
         <?php foreach ($scopeLabels as $scope => $label): ?>
             <a class="feed-tab <?= $activeScope === $scope ? 'active' : '' ?>" href="<?= esc($scopeUrl($scope), 'attr') ?>" <?= $activeScope === $scope ? 'aria-current="page"' : '' ?>><?= esc($label) ?></a>
@@ -57,13 +59,13 @@ $scopeUrl = static fn (string $scope): string => site_url('notes') . '?' . http_
                 ?>
                 <article class="note-card">
                     <header class="note-card-head">
-                        <div class="note-author">
+                        <a class="note-author" href="<?= site_url('users/' . $note['user_id']) ?>" style="text-decoration:none">
                             <span class="author-avatar" aria-hidden="true"><?= esc($initial) ?></span>
                             <div class="author-details">
                                 <strong class="author-name"><?= esc($ownerName) ?><?= $isOwner ? ' · Siz' : '' ?></strong>
                                 <div class="note-meta"><?= $createdAt ? esc(date('d.m.Y · H:i', $createdAt)) : 'Tarih bilinmiyor' ?></div>
                             </div>
-                        </div>
+                        </a>
                         <span class="visibility-badge <?= (int) $note['is_public'] === 1 ? 'public' : 'private' ?>" title="<?= (int) $note['is_public'] === 1 ? 'Tüm kullanıcılar görebilir' : 'Yalnızca siz ve admin görebilir' ?>">
                             <span aria-hidden="true"><?= (int) $note['is_public'] === 1 ? '◉' : '●' ?></span>
                             <span class="visibility-label"><?= (int) $note['is_public'] === 1 ? 'Herkese açık' : 'Özel' ?></span>

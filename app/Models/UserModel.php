@@ -13,6 +13,7 @@ class UserModel extends Model
 
     protected $allowedFields = [
         'username',
+        'bio',
         'email',
         'password_hash',
         'role',
@@ -20,7 +21,18 @@ class UserModel extends Model
         'language',
         'notifications_enabled',
         'is_active',
+        'last_seen_at',
     ];
+
+    public function activeUsers(int $limit = 20): array
+    {
+        return $this->select('id, username, role, last_seen_at')
+            ->where('is_active', 1)
+            ->where('last_seen_at >=', date('Y-m-d H:i:s', strtotime('-90 seconds')))
+            ->orderBy('last_seen_at', 'DESC')
+            ->limit($limit)
+            ->findAll();
+    }
 
     protected $useTimestamps = true;
     protected $createdField  = 'created_at';

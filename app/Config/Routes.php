@@ -12,6 +12,28 @@ $routes->get('system/version', 'UpdateStatus::version');
 
 $routes->group('', ['filter' => 'auth'], static function ($routes) {
     $routes->post('logout', 'Auth::logout');
+    $routes->get('system/heartbeat', 'Presence::heartbeat');
+    $routes->get('system/active-users', 'Presence::activeUsers');
+    $routes->get('system/live-updates', 'LiveUpdates::status');
+    $routes->get('users/(:num)', 'Users::show/$1');
+    $routes->get('users/u', 'Users::byUsername');
+    $routes->get('users/u/(:segment)', 'Users::byUsername/$1');
+    $routes->post('users/profile', 'Users::updateProfile');
+    $routes->get('notifications', 'Notifications::index');
+    $routes->get('notifications/preview', 'Notifications::preview');
+    $routes->get('notifications/(:num)/open', 'Notifications::open/$1');
+    $routes->post('notifications/read-all', 'Notifications::readAll');
+    $routes->post('notifications/(:num)/read', 'Notifications::read/$1');
+    $routes->get('messages', 'Messages::index');
+    $routes->get('messages/preview', 'Messages::preview');
+    $routes->post('messages/start/(:num)', 'Messages::start/$1');
+    $routes->get('messages/(:num)', 'Messages::show/$1');
+    $routes->get('messages/(:num)/poll', 'Messages::poll/$1');
+    $routes->get('messages/(:num)/history', 'Messages::history/$1');
+    $routes->post('messages/(:num)/send', 'Messages::send/$1');
+    $routes->post('messages/(:num)/delete/(:num)', 'Messages::delete/$1/$2');
+    $routes->post('messages/block/(:num)', 'Messages::block/$1');
+    $routes->post('messages/unblock/(:num)', 'Messages::unblock/$1');
     $routes->get('dashboard', 'Dashboard::index');
     $routes->get('calendar', 'Calendar::index');
     $routes->get('profile', 'Profile::index');
@@ -54,6 +76,8 @@ $routes->group('', ['filter' => 'auth'], static function ($routes) {
     $routes->get('games/room/(:alphanum)/state', 'GameRooms::state/$1');
     $routes->get('games/room/(:alphanum)/version', 'GameRooms::version/$1');
     $routes->post('games/room/(:alphanum)/move', 'GameRooms::move/$1');
+    $routes->post('games/room/(:alphanum)/leave', 'GameRooms::leave/$1');
+    $routes->post('games/room/(:alphanum)/invite/(:num)', 'GameRooms::invite/$1/$2');
     $routes->get('notes', 'Notes::index');
     $routes->get('notes/create', 'Notes::create');
     $routes->post('notes', 'Notes::store');

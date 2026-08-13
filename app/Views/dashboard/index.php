@@ -113,6 +113,8 @@
     <a class="button" href="<?= site_url('notes/create') ?>">Yeni Not Oluştur</a>
 </section>
 
+<?= view('partials/active_users', ['activeUsers' => $activeUsers]) ?>
+
 <section class="stats-grid" aria-label="Genel özet">
     <article class="stat-card">
         <span class="stat-label">Notlar</span>

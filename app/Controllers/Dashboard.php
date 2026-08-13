@@ -6,6 +6,7 @@ use App\Models\NoteModel;
 use App\Models\TaskModel;
 use App\Models\JournalEntryModel;
 use App\Models\HabitModel;
+use App\Models\UserModel;
 use DateTimeImmutable;
 
 class Dashboard extends BaseController
@@ -72,6 +73,7 @@ class Dashboard extends BaseController
             'dashboardHabits'   => $dashboardHabits,
             'userId'          => $userId,
             'isAdmin'         => $isAdmin,
+            'activeUsers'     => (new UserModel())->activeUsers(),
         ]);
     }
 }
