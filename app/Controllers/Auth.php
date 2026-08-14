@@ -16,6 +16,14 @@ class Auth extends BaseController
         return redirect()->to(site_url('login'));
     }
 
+    public function forgotPassword()
+    {
+        if (session()->get('logged_in')) {
+            return redirect()->to(site_url('dashboard'));
+        }
+
+        return view('auth/forgot_password');
+    }
     public function register()
     {
         if (session()->get('logged_in')) {
@@ -553,4 +561,348 @@ class Auth extends BaseController
                 . 'Lütfen gelen kutunuzu ve spam klasörünüzü kontrol edin.'
             );
     }
-}
+
+    public function sendPasswordReset()
+    {
+        if (session()->get('logged_in')) {
+            return redirect()->to(site_url('dashboard'));
+        }
+
+        $emailAddress = strtolower(
+            trim((string) $this->request->getPost('email'))
+        );
+
+        if ($emailAddress === '') {
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with(
+                    'error',
+                    'E-posta adresi zorunludur.'
+                );
+        }
+
+        $userModel = new UserModel();
+
+        $user = $userModel
+            ->where('email', $emailAddress)
+            ->first();
+
+        /*
+        * Güvenlik için kullanıcı var/yok bilgisini
+        * dışarıya açık etmiyoruz.
+        */
+        if (! $user) {
+            return redirect()
+                ->to(site_url('forgot-password'))
+                ->with(
+                    'success',
+                    'Bu e-posta adresi sistemde kayıtlıysa şifre sıfırlama bağlantısı gönderildi.'
+                );
+        }
+
+        /*
+        * Hesap devre dışıysa reset maili göndermeyelim.
+        */
+        if ((int) ($user['is_active'] ?? 1) !== 1) {
+            return redirect()
+                ->to(site_url('forgot-password'))
+                ->with(
+                    'success',
+                    'Bu e-posta adresi sistemde kayıtlıysa şifre sıfırlama bağlantısı gönderildi.'
+                );
+        }
+
+        /*
+        * Gerçek token.
+        * Mailde bu token olacak.
+        */
+        $resetToken = bin2hex(
+            random_bytes(32)
+        );
+
+        /*
+        * Database'e gerçek token yerine
+        * SHA-256 hash'ini kaydediyoruz.
+        */
+        $resetTokenHash = hash(
+            'sha256',
+            $resetToken
+        );
+
+        $expiresAt = date(
+            'Y-m-d H:i:s',
+            strtotime('+30 minutes')
+        );
+
+        $updated = $userModel
+            ->skipValidation(true)
+            ->update(
+                $user['id'],
+                [
+                    'password_reset_token' => $resetTokenHash,
+                    'password_reset_expires_at' => $expiresAt,
+                ]
+            );
+
+        if (! $updated) {
+            return redirect()
+                ->to(site_url('forgot-password'))
+                ->with(
+                    'error',
+                    'Şifre sıfırlama bağlantısı oluşturulamadı.'
+                );
+        }
+
+        /*
+        * Maildeki gerçek reset URL.
+        */
+        $resetUrl = site_url(
+            'reset-password/' . $resetToken
+        );
+
+        $email = service('email');
+
+        $email->setFrom(
+            env('email.fromEmail'),
+            env('email.fromName', 'Project Redemption')
+        );
+
+        $email->setTo($user['email']);
+
+        $email->setSubject(
+            'Project Redemption - Şifre Sıfırlama'
+        );
+
+        $email->setMailType('html');
+
+        $email->setMessage(
+            '
+            <h2>Project Redemption</h2>
+
+            <p>
+                Merhaba ' . esc($user['username']) . ',
+            </p>
+
+            <p>
+                Hesabınız için bir şifre sıfırlama isteği aldık.
+            </p>
+
+            <p>
+                Yeni bir şifre belirlemek için aşağıdaki bağlantıya tıklayın:
+            </p>
+
+            <p>
+                <a href="' . esc($resetUrl) . '">
+                    Şifremi Sıfırla
+                </a>
+            </p>
+
+            <p>
+                Bu bağlantı 30 dakika boyunca geçerlidir.
+            </p>
+
+            <p>
+                Bu isteği siz yapmadıysanız bu e-postayı görmezden gelebilirsiniz.
+                Mevcut şifreniz değişmeyecektir.
+            </p>
+            '
+        );
+
+        if (! $email->send(false)) {
+
+            /*
+            * Mail gönderilemediyse oluşturduğumuz
+            * reset tokenı da temizleyelim.
+            */
+            $userModel
+                ->skipValidation(true)
+                ->update(
+                    $user['id'],
+                    [
+                        'password_reset_token' => null,
+                        'password_reset_expires_at' => null,
+                    ]
+                );
+
+            log_message(
+                'error',
+                'Şifre sıfırlama e-postası gönderilemedi. User ID: '
+                . $user['id']
+                . ' Debug: '
+                . $email->printDebugger()
+            );
+
+            return redirect()
+                ->to(site_url('forgot-password'))
+                ->with(
+                    'error',
+                    'Şifre sıfırlama e-postası gönderilemedi.'
+                );
+        }
+
+        AuditLogger::record(
+            (int) $user['id'],
+            'auth.password_reset_requested',
+            'Kullanıcı şifre sıfırlama bağlantısı istedi',
+            'POST',
+            'forgot-password',
+            200
+        );
+
+        return redirect()
+            ->to(site_url('forgot-password'))
+            ->with(
+                'success',
+                'Şifre sıfırlama bağlantısı e-posta adresinize gönderildi. Lütfen spam klasörünüzü de kontrol edin.'
+            );
+    }
+
+    public function resetPassword(string $token)
+    {
+        if (session()->get('logged_in')) {
+            return redirect()->to(site_url('dashboard'));
+        }
+
+        if ($token === '') {
+            return redirect()
+                ->to(site_url('forgot-password'))
+                ->with('error', 'Geçersiz şifre sıfırlama bağlantısı.');
+        }
+
+        $tokenHash = hash('sha256', $token);
+
+        $userModel = new UserModel();
+
+        $user = $userModel
+            ->where('password_reset_token', $tokenHash)
+            ->first();
+
+        if (! $user) {
+            return redirect()
+                ->to(site_url('forgot-password'))
+                ->with(
+                    'error',
+                    'Şifre sıfırlama bağlantısı geçersiz veya daha önce kullanılmış.'
+                );
+        }
+
+        if (
+            empty($user['password_reset_expires_at'])
+            || strtotime($user['password_reset_expires_at']) < time()
+        ) {
+            return redirect()
+                ->to(site_url('forgot-password'))
+                ->with(
+                    'error',
+                    'Şifre sıfırlama bağlantısının süresi dolmuş.'
+                );
+        }
+
+        return view('auth/reset_password', [
+            'token' => $token,
+        ]);
+    }
+
+    public function updatePassword(string $token)
+    {
+        if (session()->get('logged_in')) {
+            return redirect()->to(site_url('dashboard'));
+        }
+
+        if ($token === '') {
+            return redirect()
+                ->to(site_url('forgot-password'))
+                ->with('error', 'Geçersiz şifre sıfırlama bağlantısı.');
+        }
+
+        $password = (string) $this->request->getPost('password');
+        $passwordConfirm = (string) $this->request->getPost('password_confirm');
+
+        if (strlen($password) < 6) {
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with('errors', [
+                    'password' => 'Şifre en az 6 karakter olmalıdır.',
+                ]);
+        }
+
+        if ($password !== $passwordConfirm) {
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with('errors', [
+                    'password_confirm' => 'Şifreler eşleşmiyor.',
+                ]);
+        }
+
+        $tokenHash = hash('sha256', $token);
+
+        $userModel = new UserModel();
+
+        $user = $userModel
+            ->where('password_reset_token', $tokenHash)
+            ->first();
+
+        if (! $user) {
+            return redirect()
+                ->to(site_url('forgot-password'))
+                ->with(
+                    'error',
+                    'Şifre sıfırlama bağlantısı geçersiz veya daha önce kullanılmış.'
+                );
+        }
+
+        if (
+            empty($user['password_reset_expires_at'])
+            || strtotime($user['password_reset_expires_at']) < time()
+        ) {
+            return redirect()
+                ->to(site_url('forgot-password'))
+                ->with(
+                    'error',
+                    'Şifre sıfırlama bağlantısının süresi dolmuş.'
+                );
+        }
+
+        $updated = $userModel
+            ->skipValidation(true)
+            ->update(
+                $user['id'],
+                [
+                    'password_hash' => password_hash(
+                        $password,
+                        PASSWORD_DEFAULT
+                    ),
+
+                    'password_reset_token' => null,
+                    'password_reset_expires_at' => null,
+                ]
+            );
+
+        if (! $updated) {
+            return redirect()
+                ->back()
+                ->with('error', 'Şifre değiştirilemedi.');
+        }
+
+        cache()->delete('auth_user_' . $user['id']);
+
+        AuditLogger::record(
+            (int) $user['id'],
+            'auth.password_reset_completed',
+            'Kullanıcı şifresini sıfırladı',
+            'POST',
+            'reset-password',
+            200
+        );
+
+        return redirect()
+            ->to(site_url('login'))
+            ->with(
+                'success',
+                'Şifreniz başarıyla değiştirildi. Yeni şifrenizle giriş yapabilirsiniz.'
+            );
+    }
+    }

@@ -89,7 +89,18 @@ $routes->group('', ['filter' => 'auth'], static function ($routes) {
     $routes->post('notes/(:num)/comments/(:num)/delete', 'Notes::deleteComment/$1/$2');
     $routes->post('resend-verification','Auth::resendVerification');
     $routes->get('verify-email/(:segment)','Auth::verifyEmail/$1');
-});
+});$routes->get('forgot-password', 'Auth::forgotPassword');
+$routes->post('forgot-password', 'Auth::sendPasswordReset');
+
+$routes->get(
+    'reset-password/(:segment)',
+    'Auth::resetPassword/$1'
+);
+
+$routes->post(
+    'reset-password/(:segment)',
+    'Auth::updatePassword/$1'
+);
 
 $routes->group('admin', ['filter' => ['auth','admin']], static function ($routes) {
     $routes->get('', 'Admin::index');

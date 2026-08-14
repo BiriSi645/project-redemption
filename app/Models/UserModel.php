@@ -19,6 +19,8 @@ class UserModel extends Model
         'email_verification_token',
         'email_verification_expires_at',
         'password_hash',
+        'password_reset_token',
+        'password_reset_expires_at',
         'role',
         'theme',
         'language',
