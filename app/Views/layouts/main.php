@@ -176,7 +176,6 @@ $unreadMessageCount = (new \App\Models\DirectConversationModel())->unreadCount((
                     <section class="message-popover" id="message-popover" hidden aria-label="Son mesajlar">
                         <header class="message-popover-head"><strong>Mesajlar</strong><a href="<?= site_url('messages') ?>">Tümünü gör</a></header>
                         <div class="message-preview-list" data-message-preview-list><div class="message-popover-state">Konuşmalar yükleniyor…</div></div>
-                        <a class="message-popover-all" href="<?= site_url('messages') ?>">Tüm mesajları aç →</a>
                     </section>
                 </div>
                 <a class="user" href="<?= site_url('users/' . session()->get('user_id')) ?>" style="text-decoration:none"><?= esc(session()->get('username')) ?><?= session()->get('role') === 'admin' ? ' · Admin' : '' ?></a>

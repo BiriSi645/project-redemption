@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Models\NoteModel;
+use App\Models\UserBlockModel;
 use App\Models\UserModel;
 use CodeIgniter\Exceptions\PageNotFoundException;
 
@@ -69,13 +70,16 @@ class Users extends BaseController
             ->where('notes.is_public', 1)
             ->orderBy('notes.created_at', 'DESC')
             ->paginate(6, 'profile_notes');
+        $currentId = (int) session()->get('user_id');
+        $blockedByMe = (new UserBlockModel())->where(['blocker_id'=>$currentId,'blocked_id'=>$user['id']])->first() !== null;
 
         return view('users/show', [
             'title' => $user['username'] . ' profili',
             'profileUser' => $user,
-            'isOwnProfile' => (int) $user['id'] === (int) session()->get('user_id'),
+            'isOwnProfile' => (int) $user['id'] === $currentId,
             'notes' => $notes,
             'pager' => $noteModel->pager,
+            'blockedByMe' => $blockedByMe,
         ]);
     }
 }

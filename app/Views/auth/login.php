@@ -33,6 +33,67 @@
 <main class="auth-card">
     <h1>Giriş Yap</h1>
     <p class="subtitle">Notlarınıza erişmek için hesabınıza giriş yapın.</p>
+    
+
+
+
+    <?php if (session()->has('verification_pending')): ?>
+
+        <?php $verification = session('verification_pending'); ?>
+
+        <div class="alert alert-warning">
+
+            <strong>E-posta doğrulaması gerekli.</strong>
+
+            <?php if (! $verification['can_resend']): ?>
+
+                <p>
+                    Hesabınıza giriş yapmadan önce e-posta adresinizi
+                    doğrulamanız gerekiyor.
+                </p>
+
+                <p>
+                    Doğrulama bağlantısı e-posta adresinize gönderildi.
+                    Lütfen gelen kutunuzu ve
+                    <strong>spam / gereksiz</strong>
+                    klasörünüzü kontrol edin.
+                </p>
+
+            <?php else: ?>
+
+                <p>
+                    E-posta doğrulama bağlantınızın süresi dolmuş.
+                </p>
+
+                <p>
+                    Yeni bir doğrulama bağlantısı gönderebilirsiniz.
+                </p>
+
+                <form
+                    method="post"
+                    action="<?= site_url('resend-verification') ?>"
+                >
+                    <?= csrf_field() ?>
+
+                    <input
+                        type="hidden"
+                        name="email"
+                        value="<?= esc($verification['email']) ?>"
+                    >
+
+                    <button type="submit" class="btn">
+                        Doğrulama Mailini Tekrar Gönder
+                    </button>
+                </form>
+
+            <?php endif; ?>
+
+        </div>
+
+    <?php endif; ?>
+
+
+
 
     <?php if ($errors = session()->getFlashdata('errors')): ?>
         <div class="alert error">
@@ -44,18 +105,45 @@
         <div class="alert success"><?= esc($success) ?></div>
     <?php endif; ?>
 
-    <form method="post" action="<?= site_url('login') ?>" autocomplete="on">
+    <form method="post" action="<?= site_url('login') ?>">
         <?= csrf_field() ?>
+
         <label for="email">E-posta</label>
-        <input id="email" type="email" name="email" value="<?= esc(old('email')) ?>" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+        <input
+            id="email"
+            type="email"
+            name="email"
+            value="<?= esc(old('email')) ?>"
+            autocomplete="username"
+            autocapitalize="none"
+            spellcheck="false"
+            required
+        >
 
         <label for="password">Şifre</label>
+
         <div class="password-wrap">
-            <input id="password" type="password" name="password" autocomplete="current-password" required>
-            <button class="password-toggle" type="button" aria-controls="password" aria-pressed="false">Göster</button>
+            <input
+                id="password"
+                type="password"
+                name="password"
+                autocomplete="current-password"
+                required
+            >
+
+            <button
+                class="password-toggle"
+                type="button"
+                aria-controls="password"
+                aria-pressed="false"
+            >
+                Göster
+            </button>
         </div>
 
-        <button type="submit">Giriş Yap</button>
+        <button type="submit">
+            Giriş Yap
+        </button>
     </form>
 
     <p class="footer">Hesabınız yok mu? <a href="<?= site_url('register') ?>">Kayıt olun</a></p>

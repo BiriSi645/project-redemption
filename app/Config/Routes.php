@@ -87,6 +87,8 @@ $routes->group('', ['filter' => 'auth'], static function ($routes) {
     $routes->post('notes/(:num)/delete', 'Notes::delete/$1');
     $routes->post('notes/(:num)/comments', 'Notes::storeComment/$1');
     $routes->post('notes/(:num)/comments/(:num)/delete', 'Notes::deleteComment/$1/$2');
+    $routes->post('resend-verification','Auth::resendVerification');
+    $routes->get('verify-email/(:segment)','Auth::verifyEmail/$1');
 });
 
 $routes->group('admin', ['filter' => ['auth','admin']], static function ($routes) {
@@ -95,4 +97,5 @@ $routes->group('admin', ['filter' => ['auth','admin']], static function ($routes
     $routes->get('logs', 'Admin::logs');
     $routes->post('users/(:num)/role', 'Admin::role/$1');
     $routes->post('users/(:num)/toggle', 'Admin::toggle/$1');
-});
+    $routes->post('users/(:num)/destroy', 'Admin::destroy/$1');
+    });

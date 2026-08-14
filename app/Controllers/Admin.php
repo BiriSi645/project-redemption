@@ -145,4 +145,121 @@ class Admin extends BaseController
 
         return redirect()->to(site_url('admin/users'))->with('success', 'Hesap durumu güncellendi.');
     }
+    public function destroy(int $id)
+    {
+        $userModel = new UserModel();
+
+        $user = $userModel->find($id);
+
+        if (! $user) {
+            return redirect()
+                ->to(site_url('admin/users'))
+                ->with('errors', [
+                    'user' => 'Kullanıcı bulunamadı.',
+                ]);
+        }
+
+        /*
+        * Admin kendi hesabını silemesin.
+        */
+        if ($id === (int) session()->get('user_id')) {
+            return redirect()
+                ->to(site_url('admin/users'))
+                ->with('errors', [
+                    'admin' => 'Kendi hesabınızı silemezsiniz.',
+                ]);
+        }
+
+        /*
+        * Son adminin silinmesini de engelle.
+        */
+        if ($user['role'] === 'admin') {
+            $activeAdminCount = $userModel
+                ->where('role', 'admin')
+                ->where('is_active', 1)
+                ->countAllResults();
+
+            if (
+                (int) $user['is_active'] === 1
+                && $activeAdminCount <= 1
+            ) {
+                return redirect()
+                    ->to(site_url('admin/users'))
+                    ->with('errors', [
+                        'admin' => 'Son aktif admin hesabı silinemez.',
+                    ]);
+            }
+        }
+
+        $db = db_connect();
+
+        /*
+        * Her şey ya silinsin ya hiçbir şey silinmesin.
+        */
+        $db->transStart();
+
+        /*
+        * Bunlar ON DELETE SET NULL olduğu için
+        * kullanıcı silinmeden önce tamamen siliyoruz.
+        */
+
+        $db->table('audit_logs')
+            ->where('user_id', $id)
+            ->delete();
+
+        $db->table('notifications')
+            ->groupStart()
+                ->where('user_id', $id)
+                ->orWhere('actor_user_id', $id)
+            ->groupEnd()
+            ->delete();
+
+        /*
+        * Asıl kullanıcıyı sil.
+        *
+        * Foreign key CASCADE sayesinde buna bağlı:
+        *
+        * notes
+        * tasks
+        * journal_entries
+        * habits
+        * habit_completions
+        * note_comments
+        * note_mentions
+        * game_scores
+        * game_rooms
+        * direct_conversations
+        * direct_messages
+        * user_blocks
+        * vb.
+        *
+        * otomatik silinecek.
+        */
+        $userModel
+            ->skipValidation(true)
+            ->delete($id);
+
+        $db->transComplete();
+
+        if (! $db->transStatus()) {
+            return redirect()
+                ->to(site_url('admin/users'))
+                ->with('errors', [
+                    'user' => 'Kullanıcı silinirken bir hata oluştu.',
+                ]);
+        }
+
+        /*
+        * Kullanıcıya ait cache kayıtlarını temizle.
+        */
+        cache()->delete('auth_user_' . $id);
+        cache()->delete('admin_dashboard_summary_v1');
+
+        return redirect()
+            ->to(site_url('admin/users'))
+            ->with(
+                'success',
+                $user['username'] . ' kullanıcısı ve tüm verileri kalıcı olarak silindi.'
+            );
+    }
 }

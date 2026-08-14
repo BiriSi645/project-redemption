@@ -25,7 +25,14 @@
             <?php endif; ?>
         </div>
     </header>
-    <?php if (! $isOwnProfile): ?><form class="profile-message-action" style="margin:-12px 0 24px;text-align:right" method="post" action="<?= site_url('messages/start/'.$profileUser['id']) ?>"><?= csrf_field() ?><button class="button" type="submit">✉ Mesaj Gönder</button></form><?php endif; ?>
+    <?php if (! $isOwnProfile): ?>
+        <div style="margin:-12px 0 24px;text-align:right">
+            <form class="profile-message-action" style="display:inline" method="post" action="<?= site_url('messages/start/'.$profileUser['id']) ?>"><?= csrf_field() ?><button class="button" type="submit">✉ Mesaj Gönder</button></form>
+            <?php if (! empty($blockedByMe)): ?>
+                <form style="display:inline" method="post" action="<?= site_url('messages/unblock/'.$profileUser['id']) ?>"><?= csrf_field() ?><button class="button secondary" type="submit">Engeli Kaldır</button></form>
+            <?php endif; ?>
+        </div>
+    <?php endif; ?>
     <h2>Public notlar</h2>
     <?php if ($notes === []): ?><p class="empty-profile">Bu kullanıcının henüz public notu yok.</p><?php endif; ?>
     <div class="profile-notes">

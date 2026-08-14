@@ -1,6 +1,6 @@
 (() => {
     'use strict';
-    const button=document.querySelector('.message-icon-button'),panel=document.getElementById('message-popover'),list=panel?.querySelector('[data-message-preview-list]');
+    const button=document.querySelector('[data-message-nav]'),panel=document.getElementById('message-popover'),list=panel?.querySelector('[data-message-preview-list]');
     if(!button||!panel||!list)return;
     let loadedAt=0,loading=false;
 
