@@ -96,12 +96,29 @@
     .dashboard-habit small { color:#6b7280; }
     .dashboard-habit .button { padding:8px 10px; }
     .dashboard-habit-goal { color:#166534; font-size:13px; font-weight:700; white-space:nowrap; }
+    .level-leaders { margin-bottom:24px; padding:18px 20px; border:1px solid #e5e7eb; border-radius:14px; }
+    .level-leaders h2 { margin:0 0 14px; font-size:20px; }
+    .level-leader-list { display:grid; grid-template-columns:repeat(3,1fr); gap:11px; }
+    .level-leader { display:grid; grid-template-columns:auto auto minmax(0,1fr) auto; align-items:center; gap:10px; padding:12px; border-radius:11px; background:#f8fafc; color:inherit; text-decoration:none; }
+    .level-leader:first-child { background:linear-gradient(135deg,#fef3c7,#fffbeb); }
+    .level-rank { font-size:20px; }
+    .level-avatar { display:grid; width:38px; height:38px; place-items:center; border-radius:50%; background:linear-gradient(135deg,#2563eb,#7c3aed); color:#fff; font-weight:800; }
+    .level-user { min-width:0; }
+    .level-user strong,.level-user small { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .level-user small { margin-top:3px; color:#6b7280; font-size:12px; }
+    .level-badge { padding:6px 9px; border-radius:999px; background:#e0e7ff; color:#3730a3; font-size:12px; font-weight:800; white-space:nowrap; }
+    html[data-theme="dark"] .level-leaders { border-color:#475569; }
+    html[data-theme="dark"] .level-leader { background:#0f172a; }
+    html[data-theme="dark"] .level-leader:first-child { background:linear-gradient(135deg,#422006,#292524); }
+    html[data-theme="dark"] .level-user small { color:#94a3b8; }
+    html[data-theme="dark"] .level-badge { background:#312e81; color:#e0e7ff; }
 
     @media (max-width: 850px) {
         .stats-grid { grid-template-columns: 1fr; }
         .dashboard-grid { grid-template-columns: 1fr; }
         .overview-grid { grid-template-columns:1fr; }
         .dashboard-hero { align-items: flex-start; flex-direction: column; }
+        .level-leader-list { grid-template-columns:1fr; }
     }
 </style>
 
@@ -114,6 +131,8 @@
 </section>
 
 <?= view('partials/active_users', ['activeUsers' => $activeUsers]) ?>
+
+<section class="level-leaders" aria-label="Seviye liderleri"><h2>Seviye liderleri</h2><?php if ($levelLeaders === []): ?><p class="stat-label">Henüz sıralanacak kullanıcı yok.</p><?php else: ?><div class="level-leader-list"><?php foreach ($levelLeaders as $index => $leader): ?><a class="level-leader" href="<?= site_url('users/'.$leader['id']) ?>"><span class="level-rank" aria-label="<?= $index + 1 ?>. sıra"><?= ['🥇','🥈','🥉'][$index] ?></span><span class="level-avatar"><?= esc(mb_strtoupper(mb_substr($leader['username'], 0, 1))) ?></span><span class="level-user"><strong><?= esc($leader['username']) ?></strong><small><?= (int) $leader['experience_points'] ?> XP<?= $leader['role'] === 'admin' ? ' · Admin' : '' ?></small></span><span class="level-badge">Sv. <?= (int) $leader['level'] ?></span></a><?php endforeach ?></div><?php endif ?></section>
 
 <section class="stats-grid" aria-label="Genel özet">
     <article class="stat-card">

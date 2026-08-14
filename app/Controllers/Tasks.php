@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Models\TaskModel;
 use App\Models\NotificationModel;
+use App\Libraries\ExperienceService;
 use CodeIgniter\Exceptions\PageNotFoundException;
 
 class Tasks extends BaseController
@@ -88,6 +89,7 @@ class Tasks extends BaseController
         ]);
         if ($completed) {
             (new NotificationModel())->where('task_id', $id)->where('type', 'task_due')->delete();
+            (new ExperienceService())->award((int) session()->get('user_id'), 'task_completed', 'task:' . $id);
         }
 
         return redirect()->back()->with(

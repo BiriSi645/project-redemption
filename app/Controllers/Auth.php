@@ -259,6 +259,7 @@ class Auth extends BaseController
             'role'      => $user['role'] ?? 'user',
             'theme'     => $user['theme'] ?? 'system',
             'notifications_enabled' => (int) ($user['notifications_enabled'] ?? 0),
+            'experience_points' => (int) ($user['experience_points'] ?? 0),
             'logged_in' => true,
         ]);
         (new UserModel())->skipValidation(true)->update((int) $user['id'], ['last_seen_at' => date('Y-m-d H:i:s')]);

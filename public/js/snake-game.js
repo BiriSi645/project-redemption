@@ -18,13 +18,27 @@
     const gridSize = 20;
     const cell = canvas.width / gridSize;
     const directions = { up: {x:0,y:-1}, down:{x:0,y:1}, left:{x:-1,y:0}, right:{x:1,y:0} };
+    const storageKey = `project-redemption:snake:${root.dataset.userId}`;
     let snake, food, direction, pendingDirection, score, level, timer, running, paused, ended;
     let touchStart = null;
     let best = Number(root.dataset.personalBest) || 0;
     bestElement.textContent = String(best);
 
+    const clearSaved = () => { try { localStorage.removeItem(storageKey); } catch (error) {} };
+    function directionName(value) { return Object.keys(directions).find(name => directions[name].x === value.x && directions[name].y === value.y) || 'right'; }
+    function save() { if (ended || !running) return ended ? clearSaved() : undefined; try { localStorage.setItem(storageKey, JSON.stringify({version:1,snake,food,direction:directionName(direction),pendingDirection:directionName(pendingDirection),score,level})); } catch (error) {} }
+    function restore() {
+        let saved; try { saved = JSON.parse(localStorage.getItem(storageKey) || 'null'); } catch (error) { return false; }
+        if (!saved || saved.version !== 1 || !Array.isArray(saved.snake) || saved.snake.length < 3 || !saved.food || !directions[saved.direction] || !directions[saved.pendingDirection]) return false;
+        const validPart = part => Number.isInteger(part.x) && Number.isInteger(part.y) && part.x >= 0 && part.x < gridSize && part.y >= 0 && part.y < gridSize;
+        if (!saved.snake.every(validPart) || !validPart(saved.food)) { clearSaved(); return false; }
+        clearTimeout(timer); snake=saved.snake;food=saved.food;direction=directions[saved.direction];pendingDirection=directions[saved.pendingDirection];score=Math.max(0,Number(saved.score)||0);level=Math.max(1,Math.min(9,Number(saved.level)||1));running=true;paused=true;ended=false;
+        scoreElement.textContent=String(score);levelElement.textContent=String(level);if(score>best){best=score;bestElement.textContent=String(best);}startButton.disabled=true;pauseButton.disabled=false;pauseButton.textContent='Devam et';showOverlay('Oyun duraklatıldı','Kaldığınız yerden devam etmek için düğmeye veya boşluk tuşuna basın.');draw();return true;
+    }
+
     function reset() {
         clearTimeout(timer);
+        clearSaved();
         snake = [{x:10,y:10},{x:9,y:10},{x:8,y:10}];
         direction = directions.right;
         pendingDirection = directions.right;
@@ -46,7 +60,7 @@
         if (ended) reset();
         if (running && !paused) return;
         running = true; paused = false; overlay.hidden = true; startButton.disabled = true; pauseButton.disabled = false; pauseButton.textContent = 'Duraklat';
-        schedule();
+        save(); schedule();
     }
 
     function schedule() { clearTimeout(timer); if (running && !paused) timer = setTimeout(tick, Math.max(65, 145-(level-1)*10)); }
@@ -63,7 +77,7 @@
             scoreElement.textContent = String(score); levelElement.textContent = String(level);
             if (score > best) { best = score; bestElement.textContent = String(best); }
         } else snake.pop();
-        draw(); schedule();
+        draw(); save(); schedule();
     }
 
     function setDirection(name, autoStart=true) {
@@ -76,11 +90,11 @@
     function togglePause() {
         if (!running || ended) return;
         paused = !paused; pauseButton.textContent = paused ? 'Devam et' : 'Duraklat';
-        if (paused) { clearTimeout(timer); showOverlay('Oyun duraklatıldı', 'Devam etmek için düğmeye veya boşluk tuşuna basın.'); }
-        else { overlay.hidden = true; schedule(); }
+        if (paused) { clearTimeout(timer); showOverlay('Oyun duraklatıldı', 'Devam etmek için düğmeye veya boşluk tuşuna basın.'); save(); }
+        else { overlay.hidden = true; save(); schedule(); }
     }
 
-    function gameOver() { running=false;ended=true;clearTimeout(timer);startButton.disabled=false;pauseButton.disabled=true;showOverlay('Oyun bitti',`Skorunuz: ${score} · Yeniden denemek için başlatın.`);if(score>0)saveScore(); }
+    function gameOver() { running=false;ended=true;clearTimeout(timer);clearSaved();startButton.disabled=false;pauseButton.disabled=true;showOverlay('Oyun bitti',`Skorunuz: ${score} · Yeniden denemek için başlatın.`);if(score>0)saveScore(); }
     async function saveScore() {
         scoreStatus.textContent='Skor kaydediliyor…';
         const body=new URLSearchParams({game:'snake',difficulty:'default',score:String(score),[root.dataset.csrfName]:root.dataset.csrfHash});
@@ -106,5 +120,6 @@
     canvas.addEventListener('touchend',event=>{if(!touchStart)return;const t=event.changedTouches[0],dx=t.clientX-touchStart.x,dy=t.clientY-touchStart.y;if(Math.max(Math.abs(dx),Math.abs(dy))>20)setDirection(Math.abs(dx)>Math.abs(dy)?(dx>0?'right':'left'):(dy>0?'down':'up'));touchStart=null;},{passive:true});
     startButton.addEventListener('click',start);pauseButton.addEventListener('click',togglePause);restartButton.addEventListener('click',reset);
     document.addEventListener('visibilitychange',()=>{if(document.hidden&&running&&!paused)togglePause();});
-    reset();
+    window.addEventListener('pagehide',()=>{clearTimeout(timer);save();});
+    if(!restore())reset();
 })();

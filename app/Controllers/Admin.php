@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Models\AuditLogModel;
+use App\Models\AnnouncementModel;
 use App\Models\HabitModel;
 use App\Models\JournalEntryModel;
 use App\Models\NoteCommentModel;
@@ -45,6 +46,14 @@ class Admin extends BaseController
 
     public function users(): string
     {
+        $managementSections = [
+            'users' => 'Kullanıcı Yönetimi',
+            'notifications' => 'Bildirim Yönetimi',
+        ];
+        $section = (string) $this->request->getGet('section');
+        if (! array_key_exists($section, $managementSections)) {
+            $section = 'users';
+        }
         $search = trim((string) $this->request->getGet('q'));
         $role = (string) $this->request->getGet('role');
         $status = (string) $this->request->getGet('status');
@@ -60,10 +69,28 @@ class Admin extends BaseController
             $userModel->where('is_active', $status === 'active' ? 1 : 0);
         }
 
+        $users = [];
+        $pager = null;
+        $announcements = [];
+        $announcementPager = null;
+        if ($section === 'users') {
+            $users = $userModel->orderBy('created_at', 'DESC')->paginate(15, 'users');
+            $pager = $userModel->pager;
+        } else {
+            $announcementModel = new AnnouncementModel();
+            $announcements = $announcementModel->withAuthor()->orderBy('announcements.created_at', 'DESC')->paginate(6, 'announcements');
+            $announcementPager = $announcementModel->pager;
+        }
+
         return view('admin/users', [
-            'title' => 'Kullanıcı Yönetimi',
-            'users' => $userModel->orderBy('created_at', 'DESC')->paginate(15),
-            'pager' => $userModel->pager,
+            'title' => 'Yönetim Merkezi',
+            'users' => $users,
+            'pager' => $pager,
+            'announcements' => $announcements,
+            'announcementPager' => $announcementPager,
+            'totalUserCount' => (new UserModel())->countAllResults(),
+            'activeSection' => $section,
+            'managementSections' => $managementSections,
             'search' => $search,
             'activeRole' => $role,
             'activeStatus' => $status,

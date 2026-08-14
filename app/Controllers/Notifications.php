@@ -88,7 +88,7 @@ class Notifications extends BaseController
         (new NotificationModel())->where('user_id', (int) session()->get('user_id'))
             ->where('read_at', null)->set(['read_at' => date('Y-m-d H:i:s')])->update();
 
-        return redirect()->to(site_url('notifications'))->with('success', 'Tüm bildirimler okundu olarak işaretlendi.');
+        return redirect()->back()->with('success', 'Tüm bildirimler okundu olarak işaretlendi.');
     }
 
     private function relativeTime(?string $date): string

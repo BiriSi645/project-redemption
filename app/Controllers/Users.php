@@ -6,6 +6,7 @@ use App\Models\NoteModel;
 use App\Models\UserBlockModel;
 use App\Models\UserModel;
 use CodeIgniter\Exceptions\PageNotFoundException;
+use App\Libraries\ExperienceService;
 
 class Users extends BaseController
 {
@@ -35,7 +36,7 @@ class Users extends BaseController
 
     public function show(int $id)
     {
-        $user = (new UserModel())->select('id, username, bio, role, created_at')->find($id);
+        $user = (new UserModel())->select('id, username, bio, role, experience_points, created_at')->find($id);
         if (! $user) {
             throw PageNotFoundException::forPageNotFound('Kullanıcı bulunamadı.');
         }
@@ -53,7 +54,7 @@ class Users extends BaseController
             throw PageNotFoundException::forPageNotFound('Kullanıcı bulunamadı.');
         }
 
-        $user = (new UserModel())->select('id, username, bio, role, created_at')->where('username', $username)->first();
+        $user = (new UserModel())->select('id, username, bio, role, experience_points, created_at')->where('username', $username)->first();
         if (! $user) {
             throw PageNotFoundException::forPageNotFound('Kullanıcı bulunamadı.');
         }
@@ -80,6 +81,7 @@ class Users extends BaseController
             'notes' => $notes,
             'pager' => $noteModel->pager,
             'blockedByMe' => $blockedByMe,
+            'levelSummary' => ExperienceService::summary((int) ($user['experience_points'] ?? 0)),
         ]);
     }
 }

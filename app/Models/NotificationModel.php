@@ -42,6 +42,10 @@ class NotificationModel extends Model
             'note_mention' => '@',
             'task_due' => '✓',
             'game_invite' => '🎮',
+            'system_update' => '↻',
+            'admin_announcement' => '!',
+            'project_invite' => '◆',
+            'project_response' => '◇',
             default => '🔔',
         };
     }

@@ -112,5 +112,7 @@
     refresh();
     const interval = window.setInterval(refresh, 10000);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
+    document.addEventListener('project:realtime-message', refresh);
+    document.addEventListener('project:realtime-notification', refresh);
     window.addEventListener('pagehide', () => window.clearInterval(interval), { once: true });
 })();

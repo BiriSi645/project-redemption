@@ -14,6 +14,7 @@ class UserModel extends Model
     protected $allowedFields = [
         'username',
         'bio',
+        'experience_points',
         'email',
         'email_verified_at',
         'email_verification_token',

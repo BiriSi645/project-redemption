@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Models\HabitCompletionModel;
 use App\Models\HabitModel;
 use CodeIgniter\Exceptions\PageNotFoundException;
+use App\Libraries\ExperienceService;
 
 class Habits extends BaseController
 {
@@ -107,6 +108,7 @@ class Habits extends BaseController
                 'completed_on' => date('Y-m-d'),
                 'completed_at' => date('Y-m-d H:i:s'),
             ]);
+            (new ExperienceService())->award((int) session()->get('user_id'), 'habit_completed', 'habit:' . $id . ':' . date('Y-m-d'));
             $message = 'Alışkanlık bu dönem için tamamlandı.';
         }
 

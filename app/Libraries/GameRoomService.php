@@ -12,15 +12,23 @@ class GameRoomService
         'medium' => ['rows' => 12, 'cols' => 12, 'mines' => 24],
         'expert' => ['rows' => 16, 'cols' => 16, 'mines' => 40],
     ];
+    private const SNAKE_GRID = 24;
+    private const SNAKE_TARGET_LENGTH = 15;
+    private const SNAKE_TICK_MS = 180;
 
     public function create(int $userId, string $game, string $difficulty): array
     {
         $this->cleanupInactiveRooms();
-        if (! in_array($game, ['sudoku', 'minesweeper'], true) || ! SudokuPuzzles::has($difficulty)) {
+        if (! in_array($game, ['sudoku', 'minesweeper', 'snake'], true) || ($game !== 'snake' && ! SudokuPuzzles::has($difficulty))) {
             throw new RuntimeException('Geçersiz oyun veya zorluk seviyesi.');
         }
 
-        $state = $game === 'sudoku' ? $this->newSudoku($difficulty) : $this->newMines($difficulty);
+        $difficulty = $game === 'snake' ? 'default' : $difficulty;
+        $state = match ($game) {
+            'sudoku' => $this->newSudoku($difficulty),
+            'minesweeper' => $this->newMines($difficulty),
+            default => $this->newSnake(),
+        };
         $model = new GameRoomModel();
         for ($attempt = 0; $attempt < 8; $attempt++) {
             $code = $this->roomCode();
@@ -58,6 +66,9 @@ class GameRoomService
         if ((int) $room['host_user_id'] !== $userId && $room['guest_user_id'] === null) {
             $state = json_decode($room['state'], true);
             $state['startedAt'] = time();
+            if ($room['game'] === 'snake') {
+                $state['lastTickMs'] = (int) round(microtime(true) * 1000) + 1000;
+            }
             $db->table('game_rooms')->where('id', $room['id'])->update([
                 'guest_user_id' => $userId, 'status' => 'playing',
                 'guest_room_seen_at' => date('Y-m-d H:i:s'),
@@ -90,6 +101,10 @@ class GameRoomService
     public function versionForPlayer(string $code, int $userId): array
     {
         $this->cleanupInactiveRooms();
+        $game = (new GameRoomModel())->select('game')->where('code', strtoupper($code))->first();
+        if (($game['game'] ?? null) === 'snake') {
+            return $this->advanceSnakeRoom($code, $userId);
+        }
         $room = (new GameRoomModel())
             ->select('id, code, host_user_id, guest_user_id, status, version')
             ->where('code', strtoupper($code))
@@ -114,8 +129,13 @@ class GameRoomService
         $state = json_decode($room['state'], true);
         if ($room['game'] === 'sudoku') {
             $this->sudokuMove($state, $userId, $input);
-        } else {
+        } elseif ($room['game'] === 'minesweeper') {
             $this->minesMove($state, $userId, $input);
+        } else {
+            $this->advanceSnake($state, (int) $room['host_user_id'], (int) $room['guest_user_id']);
+            if (empty($state['completed'])) {
+                $this->snakeDirection($state, $room, $userId, $input);
+            }
         }
         $status = ! empty($state['completed']) ? 'completed' : 'playing';
         $presenceField = (int) $room['host_user_id'] === $userId ? 'host_room_seen_at' : 'guest_room_seen_at';
@@ -177,6 +197,83 @@ class GameRoomService
     {
         $config = self::MINES[$difficulty];
         return $config + ['mineIndexes' => null, 'revealed' => [], 'revealOwners' => [], 'flags' => [], 'flagOwners' => [], 'startedAt' => null, 'completed' => false, 'lost' => false, 'completedAt' => null];
+    }
+
+    private function newSnake(): array
+    {
+        return [
+            'grid' => self::SNAKE_GRID,
+            'targetLength' => self::SNAKE_TARGET_LENGTH,
+            'snakes' => [
+                'host' => [['x'=>5,'y'=>7],['x'=>4,'y'=>7],['x'=>3,'y'=>7]],
+                'guest' => [['x'=>18,'y'=>16],['x'=>19,'y'=>16],['x'=>20,'y'=>16]],
+            ],
+            'directions' => ['host'=>'right','guest'=>'left'],
+            'food' => ['x'=>12,'y'=>12], 'lastTickMs' => null, 'startedAt' => null,
+            'completed' => false, 'completedAt' => null, 'winnerId' => null, 'loserId' => null, 'reason' => null,
+        ];
+    }
+
+    private function snakeDirection(array &$state, array $room, int $userId, array $input): void
+    {
+        $direction = (string) ($input['direction'] ?? '');
+        $vectors = ['up'=>[0,-1],'down'=>[0,1],'left'=>[-1,0],'right'=>[1,0]];
+        if (! isset($vectors[$direction])) throw new RuntimeException('Geçersiz yön.');
+        $player = (int) $room['host_user_id'] === $userId ? 'host' : 'guest';
+        $current = $state['directions'][$player];
+        if ($vectors[$direction][0] === -$vectors[$current][0] && $vectors[$direction][1] === -$vectors[$current][1]) return;
+        $state['directions'][$player] = $direction;
+    }
+
+    private function advanceSnakeRoom(string $code, int $userId): array
+    {
+        $db = db_connect(); $db->transBegin();
+        try {
+            $room = $db->query('SELECT * FROM game_rooms WHERE code = ? FOR UPDATE', [strtoupper($code)])->getRowArray();
+            $this->assertParticipant($room, $userId);
+            $version = (int) $room['version']; $status = $room['status'];
+            if ($room['status'] === 'playing') {
+                $state = json_decode($room['state'], true); $before = (int) ($state['lastTickMs'] ?? 0);
+                $this->advanceSnake($state, (int) $room['host_user_id'], (int) $room['guest_user_id']);
+                if ((int) ($state['lastTickMs'] ?? 0) !== $before || ! empty($state['completed'])) {
+                    $status=!empty($state['completed'])?'completed':'playing';$version++;
+                    $db->table('game_rooms')->where('id', $room['id'])->update(['state'=>json_encode($state,JSON_UNESCAPED_UNICODE),'status'=>$status,'version'=>$version,'updated_at'=>date('Y-m-d H:i:s')]);
+                }
+            }
+            $field = (int) $room['host_user_id'] === $userId ? 'host_room_seen_at' : 'guest_room_seen_at';
+            $db->table('game_rooms')->where('id', $room['id'])->update([$field=>date('Y-m-d H:i:s')]);
+            $db->transCommit(); return ['version'=>$version,'status'=>$status];
+        } catch (\Throwable $e) { $db->transRollback(); throw $e; }
+    }
+
+    private function advanceSnake(array &$state, int $hostId, int $guestId): void
+    {
+        $now=(int)round(microtime(true)*1000);$last=(int)($state['lastTickMs']??$now);$steps=min(8,max(0,intdiv($now-$last,self::SNAKE_TICK_MS)));
+        for($i=0;$i<$steps&&!$state['completed'];$i++){$this->snakeStep($state,$hostId,$guestId);$state['lastTickMs']+=self::SNAKE_TICK_MS;}
+    }
+
+    private function snakeStep(array &$state, int $hostId, int $guestId): void
+    {
+        $vectors=['up'=>[0,-1],'down'=>[0,1],'left'=>[-1,0],'right'=>[1,0]];$heads=[];$eats=[];
+        foreach(['host','guest'] as $player){[$dx,$dy]=$vectors[$state['directions'][$player]];$heads[$player]=['x'=>$state['snakes'][$player][0]['x']+$dx,'y'=>$state['snakes'][$player][0]['y']+$dy];$eats[$player]=$heads[$player]===$state['food'];}
+        $dead=['host'=>false,'guest'=>false];
+        foreach(['host','guest'] as $player){$head=$heads[$player];if($head['x']<0||$head['x']>=self::SNAKE_GRID||$head['y']<0||$head['y']>=self::SNAKE_GRID)$dead[$player]=true;$own=$eats[$player]?$state['snakes'][$player]:array_slice($state['snakes'][$player],0,-1);$other=$eats[$player==='host'?'guest':'host']?$state['snakes'][$player==='host'?'guest':'host']:array_slice($state['snakes'][$player==='host'?'guest':'host'],0,-1);foreach(array_merge($own,$other) as $part)if($part===$head)$dead[$player]=true;}
+        if($heads['host']===$heads['guest']||($heads['host']===$state['snakes']['guest'][0]&&$heads['guest']===$state['snakes']['host'][0]))$dead=['host'=>true,'guest'=>true];
+        if($dead['host']||$dead['guest']){$winner=$dead['host']&&!$dead['guest']?$guestId:($dead['guest']&&!$dead['host']?$hostId:null);$this->finishSnake($state,$winner,$winner===$hostId?$guestId:($winner===$guestId?$hostId:null),'collision');return;}
+        foreach(['host','guest'] as $player){array_unshift($state['snakes'][$player],$heads[$player]);if(!$eats[$player])array_pop($state['snakes'][$player]);}
+        if($eats['host']||$eats['guest'])$state['food']=$this->snakeFood($state);
+        $hostLength=count($state['snakes']['host']);$guestLength=count($state['snakes']['guest']);
+        if(max($hostLength,$guestLength)>=self::SNAKE_TARGET_LENGTH){$winner=$hostLength===$guestLength?null:($hostLength>$guestLength?$hostId:$guestId);$this->finishSnake($state,$winner,null,'target');}
+    }
+
+    private function snakeFood(array $state): array
+    {
+        $occupied=[];foreach(array_merge($state['snakes']['host'],$state['snakes']['guest']) as $part)$occupied[$part['x'].':'.$part['y']]=true;$free=[];for($y=0;$y<self::SNAKE_GRID;$y++)for($x=0;$x<self::SNAKE_GRID;$x++)if(!isset($occupied[$x.':'.$y]))$free[]=['x'=>$x,'y'=>$y];return $free[random_int(0,count($free)-1)];
+    }
+
+    private function finishSnake(array &$state, ?int $winnerId, ?int $loserId, string $reason): void
+    {
+        $state['completed']=true;$state['completedAt']=time();$state['winnerId']=$winnerId;$state['loserId']=$loserId;$state['reason']=$reason;
     }
 
     private function sudokuMove(array &$state, int $userId, array $input): void

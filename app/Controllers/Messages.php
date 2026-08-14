@@ -47,6 +47,22 @@ class Messages extends BaseController
         ]);
     }
 
+    public function readAll()
+    {
+        $userId = (int) session()->get('user_id');
+        $conversations = (new DirectConversationModel())->select('id')
+            ->groupStart()->where('user_one_id', $userId)->orWhere('user_two_id', $userId)->groupEnd()
+            ->findAll();
+        $conversationIds = array_map('intval', array_column($conversations, 'id'));
+        if ($conversationIds !== []) {
+            (new DirectMessageModel())->whereIn('conversation_id', $conversationIds)
+                ->where('sender_id !=', $userId)->where('read_at', null)
+                ->set(['read_at' => date('Y-m-d H:i:s')])->update();
+        }
+
+        return redirect()->back()->with('success', 'Tüm mesajlar okundu olarak işaretlendi.');
+    }
+
     public function start(int $recipientId)
     {
         $userId = (int) session()->get('user_id');

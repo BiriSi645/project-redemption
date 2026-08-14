@@ -37,6 +37,8 @@ $unreadMessageCount = (new \App\Models\DirectConversationModel())->unreadCount((
         .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
         .topbar-account { position:relative; display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
         .message-popover-wrap,.notification-popover-wrap{position:relative}.message-icon-button{position:relative;display:grid;width:42px;height:42px;padding:0;place-items:center;border:1px solid #d1d5db;border-radius:50%;background:#fff;color:#374151;font-size:19px;cursor:pointer}.message-icon-button:hover,.message-icon-button[aria-expanded="true"]{border-color:#93c5fd;background:#eff6ff;color:#1d4ed8}.message-icon-button .notification-badge{position:absolute;top:-5px;right:-7px;margin:0}.message-popover{position:absolute;top:50px;right:0;z-index:2000;width:min(380px,calc(100vw - 36px));overflow:hidden;border:1px solid #d1d5db;border-radius:14px;background:#fff;box-shadow:0 18px 45px rgba(15,23,42,.22);text-align:left}.notification-popover{right:-52px}.message-popover[hidden]{display:none}.message-popover-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;border-bottom:1px solid #e5e7eb}.message-popover-head strong{font-size:17px}.message-popover-head a,.message-popover-all{color:#2563eb;text-decoration:none;font-size:13px;font-weight:700}.message-preview-list{max-height:390px;overflow-y:auto}.message-preview-item{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid #eef0f3;color:inherit;text-decoration:none}.message-preview-item:hover{background:#f8fafc}.message-preview-item.unread{background:#eff6ff}.message-preview-avatar{display:grid;width:39px;height:39px;place-items:center;border-radius:50%;background:linear-gradient(135deg,#2563eb,#7c3aed);color:#fff;font-weight:800}.notification-preview-avatar{background:#eef2ff;color:#4338ca}.message-preview-copy{display:grid;min-width:0;gap:3px}.message-preview-copy strong,.message-preview-copy span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.notification-preview-copy span{white-space:normal;line-height:1.35}.message-preview-copy span,.message-preview-meta{color:#6b7280;font-size:12px}.message-preview-meta{display:grid;justify-items:end;gap:5px;white-space:nowrap}.message-preview-meta b{display:grid;min-width:20px;height:20px;padding:0 5px;place-items:center;border-radius:999px;background:#2563eb;color:#fff;font-size:10px}.message-popover-state{padding:30px 18px;color:#6b7280;text-align:center}.message-popover-all{display:block;padding:12px;text-align:center;background:#f8fafc}
+        .popover-read-all{margin:0;padding:0;border-top:1px solid #e5e7eb}.popover-read-all button{display:block;width:100%;padding:12px;border:0;background:#f8fafc;color:#2563eb;font:700 13px Arial,sans-serif;text-align:center;cursor:pointer}.popover-read-all button:hover{background:#eff6ff}
+        .account-popover-wrap{position:relative}.account-icon-button{background:linear-gradient(135deg,#2563eb,#7c3aed);border-color:transparent;color:#fff;font-size:15px;font-weight:800}.account-icon-button:hover,.account-icon-button[aria-expanded="true"]{background:linear-gradient(135deg,#1d4ed8,#6d28d9);border-color:#93c5fd;color:#fff}.account-popover{width:min(270px,calc(100vw - 36px))}.account-popover-user{display:grid;gap:3px;padding:16px;border-bottom:1px solid #e5e7eb}.account-popover-user small{color:#6b7280}.account-menu{display:grid;padding:7px}.account-menu a,.account-menu button{display:flex;width:100%;align-items:center;gap:10px;padding:11px;border:0;border-radius:8px;background:transparent;color:#374151;font:inherit;text-align:left;text-decoration:none;cursor:pointer}.account-menu a:hover,.account-menu button:hover{background:#f3f4f6}.account-menu form{margin:0;padding-top:6px;border-top:1px solid #e5e7eb}.account-menu button{color:#dc2626}.account-menu-icon{display:grid;width:24px;place-items:center}
         .live-toast-stack{position:fixed;right:20px;bottom:20px;z-index:5000;display:grid;width:min(360px,calc(100vw - 32px));gap:10px}.live-toast{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;padding:14px 15px;border:1px solid #bfdbfe;border-radius:13px;background:#fff;box-shadow:0 14px 36px rgba(15,23,42,.24);animation:live-toast-in .2s ease}.live-toast strong,.live-toast p{grid-column:1;margin:0}.live-toast p{overflow-wrap:anywhere;color:#4b5563;font-size:13px;line-height:1.45}.live-toast a{grid-column:1;justify-self:start;color:#2563eb;font-size:13px;font-weight:700;text-decoration:none}.live-toast button{grid-column:2;grid-row:1;width:28px;height:28px;padding:0;border:0;border-radius:50%;background:#f3f4f6;color:#4b5563;cursor:pointer}.live-toast.leaving{opacity:0;transform:translateY(8px);transition:.18s ease}@keyframes live-toast-in{from{opacity:0;transform:translateY(8px)}}
         .user { color: #4b5563; }
         .logout { padding: 8px 12px; border: 0; border-radius: 8px; background: #dc2626; color: #fff; cursor: pointer; }
@@ -113,6 +115,8 @@ $unreadMessageCount = (new \App\Models\DirectConversationModel())->unreadCount((
         html[data-theme="dark"] .calendar-grid { border-color:#334155; }
         html[data-theme="dark"] .day-number, html[data-theme="dark"] .calendar-filter-summary, html[data-theme="dark"] .calendar-legend { color:#cbd5e1; }
         html[data-theme="dark"] .message-icon-button,html[data-theme="dark"] .message-popover{background:#1e293b;border-color:#475569;color:#e5e7eb}html[data-theme="dark"] .message-icon-button:hover,html[data-theme="dark"] .message-icon-button[aria-expanded="true"],html[data-theme="dark"] .message-preview-item.unread{background:#172554}html[data-theme="dark"] .message-popover-head,html[data-theme="dark"] .message-preview-item{border-color:#334155}html[data-theme="dark"] .message-preview-item:hover,html[data-theme="dark"] .message-popover-all{background:#334155}
+        html[data-theme="dark"] .popover-read-all{border-color:#334155}html[data-theme="dark"] .popover-read-all button{background:#334155;color:#93c5fd}html[data-theme="dark"] .popover-read-all button:hover{background:#475569}
+        html[data-theme="dark"] .account-icon-button{background:linear-gradient(135deg,#2563eb,#7c3aed);color:#fff}html[data-theme="dark"] .account-popover-user,html[data-theme="dark"] .account-menu form{border-color:#334155}html[data-theme="dark"] .account-popover-user small{color:#94a3b8}html[data-theme="dark"] .account-menu a{color:#e2e8f0}html[data-theme="dark"] .account-menu a:hover,html[data-theme="dark"] .account-menu button:hover{background:#334155}
         html[data-theme="dark"] .live-toast{border-color:#475569;background:#1e293b;color:#e5e7eb}html[data-theme="dark"] .live-toast p{color:#cbd5e1}html[data-theme="dark"] .live-toast button{background:#334155;color:#e5e7eb}
         @media (prefers-color-scheme: dark) { html[data-theme="system"] body { background:#0f172a; color:#e5e7eb; } html[data-theme="system"] .content { background:#1e293b; } }
         @media (max-width:760px) { .content-filter { grid-template-columns:1fr !important; } .topbar { align-items:flex-start; flex-direction:column; } .topbar-account { width:100%; align-self:flex-end; justify-content:flex-end; flex-wrap:wrap; text-align:right; } }
@@ -142,6 +146,7 @@ $unreadMessageCount = (new \App\Models\DirectConversationModel())->unreadCount((
         <a href="<?= site_url('dashboard') ?>">Ana Sayfa</a>
         <a href="<?= site_url('notes') ?>">Notlar</a>
         <a href="<?= site_url('calendar') ?>">Takvim</a>
+        <a href="<?= site_url('projects') ?>">Projeler</a>
         <a href="<?= site_url('tasks') ?>">Görevler</a>
         <a href="<?= site_url('habits') ?>">Alışkanlık Takibi</a>
         <a href="<?= site_url('timer') ?>">Kronometre</a>
@@ -150,7 +155,7 @@ $unreadMessageCount = (new \App\Models\DirectConversationModel())->unreadCount((
         <?php if (session()->get('role') === 'admin'): ?>
             <a href="<?= site_url('admin') ?>">Admin Dashboard</a>
             <a href="<?= site_url('admin/users') ?>">Kullanıcı Yönetimi</a>
-            <a href="<?= site_url('admin/logs') ?>">Aktivite Logları</a>
+              <a href="<?= site_url('admin/logs') ?>">Aktivite Logları</a>
         <?php endif; ?>
         </nav>
     </aside>
@@ -166,7 +171,7 @@ $unreadMessageCount = (new \App\Models\DirectConversationModel())->unreadCount((
                     <section class="message-popover notification-popover" id="notification-popover" hidden aria-label="Son bildirimler">
                         <header class="message-popover-head"><strong>Bildirimler</strong><a href="<?= site_url('notifications') ?>">Tümünü gör</a></header>
                         <div class="message-preview-list" data-notification-preview-list><div class="message-popover-state">Bildirimler yükleniyor…</div></div>
-                        <a class="message-popover-all" href="<?= site_url('notifications') ?>">Tüm bildirimleri aç →</a>
+                        <form class="popover-read-all" method="post" action="<?= site_url('notifications/read-all') ?>"><?= csrf_field() ?><button type="submit">Tümünü okundu işaretle</button></form>
                     </section>
                 </div>
                 <div class="message-popover-wrap">
@@ -176,14 +181,20 @@ $unreadMessageCount = (new \App\Models\DirectConversationModel())->unreadCount((
                     <section class="message-popover" id="message-popover" hidden aria-label="Son mesajlar">
                         <header class="message-popover-head"><strong>Mesajlar</strong><a href="<?= site_url('messages') ?>">Tümünü gör</a></header>
                         <div class="message-preview-list" data-message-preview-list><div class="message-popover-state">Konuşmalar yükleniyor…</div></div>
+                        <form class="popover-read-all" method="post" action="<?= site_url('messages/read-all') ?>"><?= csrf_field() ?><button type="submit">Tümünü okundu işaretle</button></form>
                     </section>
                 </div>
-                <a class="user" href="<?= site_url('users/' . session()->get('user_id')) ?>" style="text-decoration:none"><?= esc(session()->get('username')) ?><?= session()->get('role') === 'admin' ? ' · Admin' : '' ?></a>
-                <a class="profile-link" href="<?= site_url('profile') ?>">Ayarlar</a>
-                <form method="post" action="<?= site_url('logout') ?>" style="display:inline">
-                    <?= csrf_field() ?>
-                    <button class="logout" type="submit">Çıkış Yap</button>
-                </form>
+                <div class="account-popover-wrap">
+                    <button class="message-icon-button account-icon-button" type="button" aria-label="Hesap menüsünü aç" aria-expanded="false" aria-controls="account-popover" data-account-button><?= esc(mb_strtoupper(mb_substr((string) session()->get('username'), 0, 1))) ?></button>
+                    <section class="message-popover account-popover" id="account-popover" hidden aria-label="Hesap menüsü">
+                        <div class="account-popover-user"><strong><?= esc(session()->get('username')) ?></strong><small><?= session()->get('role') === 'admin' ? 'Admin hesabı' : 'Kullanıcı hesabı' ?></small></div>
+                        <div class="account-menu">
+                            <a href="<?= site_url('users/' . session()->get('user_id')) ?>"><span class="account-menu-icon" aria-hidden="true">●</span>Profilim</a>
+                            <a href="<?= site_url('profile') ?>"><span class="account-menu-icon" aria-hidden="true">⚙</span>Ayarlar</a>
+                            <form method="post" action="<?= site_url('logout') ?>"><?= csrf_field() ?><button type="submit"><span class="account-menu-icon" aria-hidden="true">↪</span>Çıkış Yap</button></form>
+                        </div>
+                    </section>
+                </div>
             </div>
         </div>
 
@@ -203,9 +214,12 @@ $unreadMessageCount = (new \App\Models\DirectConversationModel())->unreadCount((
     </main>
 </div>
 <div class="live-toast-stack" data-live-toast-stack data-status-url="<?= site_url('system/live-updates') ?>" aria-live="polite" aria-atomic="false"></div>
+<div data-realtime-client></div>
 <script src="<?= base_url('js/speech-input.js') ?>"></script>
 <script src="<?= base_url('js/message-popover.js') ?>"></script>
 <script src="<?= base_url('js/notification-popover.js') ?>"></script>
+<script src="<?= base_url('js/account-popover.js') ?>"></script>
+<script src="<?= base_url('js/realtime-client.js') ?>"></script>
 <script src="<?= base_url('js/live-updates.js') ?>"></script>
 <?php if ($draftKey = session()->getFlashdata('clearJournalDraft')): ?>
 <script>try{localStorage.removeItem(<?= json_encode($draftKey) ?>)}catch(error){/* Depolama kullanılamıyorsa kayıt yine tamamlanmıştır. */}</script>

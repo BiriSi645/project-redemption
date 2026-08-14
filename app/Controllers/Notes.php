@@ -7,6 +7,7 @@ use App\Models\NoteCommentModel;
 use App\Models\UserModel;
 use App\Libraries\NoteMentionService;
 use CodeIgniter\Exceptions\PageNotFoundException;
+use App\Libraries\ExperienceService;
 
 class Notes extends BaseController
 {
@@ -83,6 +84,9 @@ class Notes extends BaseController
         }
 
         $mentionService->sync((int) $noteId, (int) $data['user_id'], (string) session()->get('username'), $mentionedUsers);
+        if ((int) $data['is_public'] === 1) {
+            (new ExperienceService())->award((int) $data['user_id'], 'public_note', 'note:' . $noteId);
+        }
 
         return redirect()->to(site_url('notes'))->with('success', 'Not oluşturuldu.');
     }
@@ -119,6 +123,9 @@ class Notes extends BaseController
         }
 
         $mentionService->sync($id, (int) $ownedNote['user_id'], (string) session()->get('username'), $mentionedUsers);
+        if ((int) ($ownedNote['is_public'] ?? 0) !== 1 && (int) $data['is_public'] === 1) {
+            (new ExperienceService())->award((int) $ownedNote['user_id'], 'public_note', 'note:' . $id);
+        }
 
         return redirect()->to(site_url('notes'))->with('success', 'Not güncellendi.');
     }

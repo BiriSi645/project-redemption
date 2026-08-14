@@ -8,6 +8,7 @@ use App\Models\JournalEntryModel;
 use App\Models\HabitModel;
 use App\Models\UserModel;
 use DateTimeImmutable;
+use App\Libraries\ExperienceService;
 
 class Dashboard extends BaseController
 {
@@ -57,6 +58,17 @@ class Dashboard extends BaseController
         }
 
         $dashboardHabits = (new HabitModel())->getForUserWithCurrentStatus($userId, true, 5);
+        $levelLeaders = (new UserModel())
+            ->select('id, username, role, experience_points')
+            ->where('is_active', 1)
+            ->orderBy('experience_points', 'DESC')
+            ->orderBy('created_at', 'ASC')
+            ->limit(3)
+            ->findAll();
+        foreach ($levelLeaders as &$leader) {
+            $leader['level'] = ExperienceService::summary((int) $leader['experience_points'])['level'];
+        }
+        unset($leader);
 
         return view('dashboard/index', [
             'title'           => 'Ana Sayfa',
@@ -74,6 +86,7 @@ class Dashboard extends BaseController
             'userId'          => $userId,
             'isAdmin'         => $isAdmin,
             'activeUsers'     => (new UserModel())->activeUsers(),
+            'levelLeaders'    => $levelLeaders,
         ]);
     }
 }

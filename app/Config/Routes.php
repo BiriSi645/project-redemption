@@ -22,10 +22,12 @@ $routes->group('', ['filter' => 'auth'], static function ($routes) {
     $routes->get('notifications', 'Notifications::index');
     $routes->get('notifications/preview', 'Notifications::preview');
     $routes->get('notifications/(:num)/open', 'Notifications::open/$1');
+    $routes->get('announcements/(:num)', 'Announcements::show/$1');
     $routes->post('notifications/read-all', 'Notifications::readAll');
     $routes->post('notifications/(:num)/read', 'Notifications::read/$1');
     $routes->get('messages', 'Messages::index');
     $routes->get('messages/preview', 'Messages::preview');
+    $routes->post('messages/read-all', 'Messages::readAll');
     $routes->post('messages/start/(:num)', 'Messages::start/$1');
     $routes->get('messages/(:num)', 'Messages::show/$1');
     $routes->get('messages/(:num)/poll', 'Messages::poll/$1');
@@ -35,6 +37,16 @@ $routes->group('', ['filter' => 'auth'], static function ($routes) {
     $routes->post('messages/block/(:num)', 'Messages::block/$1');
     $routes->post('messages/unblock/(:num)', 'Messages::unblock/$1');
     $routes->get('dashboard', 'Dashboard::index');
+    $routes->get('projects', 'Projects::index');
+    $routes->post('projects', 'Projects::store');
+    $routes->get('projects/invitations/(:num)', 'Projects::invitation/$1');
+    $routes->post('projects/invitations/(:num)', 'Projects::respond/$1');
+    $routes->get('projects/(:num)', 'Projects::show/$1');
+    $routes->post('projects/(:num)/invite', 'Projects::invite/$1');
+    $routes->post('projects/(:num)/items', 'Projects::storeItem/$1');
+    $routes->post('projects/(:num)/items/(:num)/status', 'Projects::itemStatus/$1/$2');
+    $routes->post('projects/(:num)/items/(:num)/assign', 'Projects::assignItem/$1/$2');
+    $routes->post('projects/(:num)/items/(:num)/schedule', 'Projects::scheduleItem/$1/$2');
     $routes->get('calendar', 'Calendar::index');
     $routes->get('profile', 'Profile::index');
     $routes->post('profile', 'Profile::update');
@@ -106,6 +118,8 @@ $routes->group('admin', ['filter' => ['auth','admin']], static function ($routes
     $routes->get('', 'Admin::index');
     $routes->get('users', 'Admin::users');
     $routes->get('logs', 'Admin::logs');
+    $routes->get('notifications', 'AdminNotifications::index');
+    $routes->post('notifications', 'AdminNotifications::publish');
     $routes->post('users/(:num)/role', 'Admin::role/$1');
     $routes->post('users/(:num)/toggle', 'Admin::toggle/$1');
     $routes->post('users/(:num)/destroy', 'Admin::destroy/$1');
