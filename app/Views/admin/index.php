@@ -124,11 +124,18 @@
 
     .activity-list li,
     .user-list li {
-        display: flex;
-        justify-content: space-between;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: start;
         gap: 12px;
         padding: 11px 0;
         border-bottom: 1px solid #e5e7eb
+    }
+
+    .activity-main,
+    .user-main {
+        min-width: 0;
+        overflow-wrap: anywhere
     }
 
     .activity-list li:last-child,
@@ -140,6 +147,11 @@
         display: block
     }
 
+    .user-main strong,
+    .user-main small {
+        display: block
+    }
+
     .activity-main small,
     .user-list small {
         color: #6b7280
@@ -148,6 +160,10 @@
     .activity-time {
         color: #6b7280;
         font-size: 12px;
+        white-space: nowrap
+    }
+
+    .user-date {
         white-space: nowrap
     }
 
@@ -177,6 +193,16 @@
 
         .admin-stats {
             grid-template-columns: repeat(2, minmax(0, 1fr))
+        }
+
+        .activity-list li,
+        .user-list li {
+            grid-template-columns: minmax(0, 1fr)
+        }
+
+        .activity-time,
+        .user-date {
+            justify-self: start
         }
     }
 </style>
@@ -280,9 +306,9 @@
         ) ?>">Yönet</a>
         </div>
         <ul class="user-list"><?php foreach ($recentUsers as $user): ?><li>
-                <div><strong><?= esc(
+                <div class="user-main"><strong><?= esc(
     $user["username"],
-) ?></strong><small><?= esc($user["email"]) ?></small></div><small><?= date(
+) ?></strong><small><?= esc($user["email"]) ?></small></div><small class="user-date"><?= date(
     "d.m.Y",
     strtotime($user["created_at"]),
 ) ?></small>

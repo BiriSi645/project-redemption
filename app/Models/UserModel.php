@@ -50,12 +50,12 @@ class UserModel extends Model
     protected $validationRules = [
         'username' => [
             'label' => 'Kullanıcı adı',
-            'rules' => 'required|min_length[3]|max_length[50]',
+            'rules' => 'required|min_length[3]|max_length[50]|is_unique[users.username]',
         ],
 
         'email' => [
             'label' => 'E-posta',
-            'rules' => 'required|valid_email|max_length[255]',
+            'rules' => 'required|valid_email|max_length[255]|is_unique[users.email]',
         ],
 
         'email_verification_attempts' => [

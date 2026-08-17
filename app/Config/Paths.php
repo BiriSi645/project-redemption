@@ -18,6 +18,13 @@ namespace Config;
  */
 class Paths
 {
+    public function __construct()
+    {
+        if (getenv('VERCEL')) {
+            $this->writableDirectory = sys_get_temp_dir() . '/project-redemption-writable';
+        }
+    }
+
     /**
      * ---------------------------------------------------------------
      * SYSTEM FOLDER NAME

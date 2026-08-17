@@ -40,8 +40,9 @@ $unreadMessageCount = (new \App\Models\DirectConversationModel())->unreadCount(
         .sidebar {
             width: 240px;
             padding: 24px 16px;
-            background: #111827;
-            color: #fff;
+            background: #fff;
+            border-right: 1px solid #e5e7eb;
+            color: #111827;
         }
 
         .sidebar-header {
@@ -65,7 +66,7 @@ $unreadMessageCount = (new \App\Models\DirectConversationModel())->unreadCount(
 
         .sidebar .sidebar-brand:hover {
             background: transparent;
-            color: #fff;
+            color: #111827;
         }
 
         .menu-toggle {
@@ -75,15 +76,15 @@ $unreadMessageCount = (new \App\Models\DirectConversationModel())->unreadCount(
             width: 44px;
             height: 44px;
             padding: 0;
-            border: 1px solid #374151;
+            border: 1px solid #d1d5db;
             border-radius: 9px;
-            background: #1f2937;
-            color: #fff;
+            background: #f8fafc;
+            color: #374151;
             cursor: pointer;
         }
 
         .menu-toggle:hover {
-            background: #374151;
+            background: #e5e7eb;
         }
 
         .menu-toggle:focus-visible {
@@ -140,13 +141,13 @@ $unreadMessageCount = (new \App\Models\DirectConversationModel())->unreadCount(
             padding: 10px 12px;
             margin-bottom: 6px;
             border-radius: 8px;
-            color: #d1d5db;
+            color: #374151;
             text-decoration: none;
         }
 
         .sidebar a:hover {
-            background: #1f2937;
-            color: #fff;
+            background: #f3f4f6;
+            color: #111827;
         }
 
         .notification-badge {
@@ -543,9 +544,16 @@ $unreadMessageCount = (new \App\Models\DirectConversationModel())->unreadCount(
         }
 
         .content {
+            min-width: 0;
+            max-width: 100%;
             padding: 24px;
             border-radius: 14px;
             background: #fff;
+        }
+
+        .content > * {
+            min-width: 0;
+            max-width: 100%;
         }
 
         .site-footer {
@@ -739,6 +747,35 @@ $unreadMessageCount = (new \App\Models\DirectConversationModel())->unreadCount(
         html[data-theme="dark"] body {
             background: #0f172a;
             color: #e5e7eb;
+        }
+
+        html[data-theme="dark"] .sidebar {
+            background: #111827;
+            border-right-color: #1f2937;
+            color: #fff;
+        }
+
+        html[data-theme="dark"] .sidebar .sidebar-brand:hover {
+            color: #fff;
+        }
+
+        html[data-theme="dark"] .menu-toggle {
+            border-color: #374151;
+            background: #1f2937;
+            color: #fff;
+        }
+
+        html[data-theme="dark"] .menu-toggle:hover {
+            background: #374151;
+        }
+
+        html[data-theme="dark"] .sidebar a {
+            color: #d1d5db;
+        }
+
+        html[data-theme="dark"] .sidebar a:hover {
+            background: #1f2937;
+            color: #fff;
         }
 
         html[data-theme="dark"] .content,

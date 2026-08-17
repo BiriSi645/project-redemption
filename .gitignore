@@ -118,7 +118,6 @@ _modules/*
 *.sublime-workspace
 *.sublime-project
 .phpintel
-/api/
 
 # Visual Studio Code
 .vscode/
@@ -127,3 +126,6 @@ _modules/*
 /phpunit.xml
 
 composer.phar
+
+.vercel
+.env*
