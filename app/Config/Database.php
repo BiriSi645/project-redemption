@@ -199,6 +199,29 @@ class Database extends Config
         // we don't overwrite live data on accident.
         if (ENVIRONMENT === 'testing') {
             $this->defaultGroup = 'tests';
+            return;
+        }
+
+        // Vercel / Aiven production database connection.
+        // Local development keeps using the existing localhost settings
+        // when these environment variables are not defined.
+        $dbHost = getenv('DB_HOST');
+
+        if ($dbHost !== false && $dbHost !== '') {
+            $this->default['hostname'] = $dbHost;
+            $this->default['username'] = getenv('DB_USERNAME') ?: '';
+            $this->default['password'] = getenv('DB_PASSWORD') ?: '';
+            $this->default['database'] = getenv('DB_DATABASE') ?: 'defaultdb';
+            $this->default['port']     = (int) (getenv('DB_PORT') ?: 3306);
+            $this->default['DBDriver'] = 'MySQLi';
+            $this->default['pConnect'] = false;
+            $this->default['DBDebug']  = false;
+
+            // Aiven requires TLS. This enables an encrypted MySQL connection.
+            // We can enable CA verification separately after the first deploy.
+            $this->default['encrypt'] = [
+                'ssl_verify' => false,
+            ];
         }
     }
 }
