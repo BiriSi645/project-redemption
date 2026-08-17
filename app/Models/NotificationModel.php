@@ -41,6 +41,8 @@ class NotificationModel extends Model
         return match ($type) {
             'note_mention' => '@',
             'task_due' => '✓',
+            'task_overdue' => '⌛',
+            'calendar_reminder' => '⏰',
             'game_invite' => '🎮',
             'system_update' => '↻',
             'admin_announcement' => '!',

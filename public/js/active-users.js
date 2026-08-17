@@ -27,7 +27,7 @@
         }
 
         const fragment = document.createDocumentFragment();
-        users.forEach(user => {
+        users.forEach((user) => {
             const item = document.createElement('a');
             item.className = 'active-user';
             item.href = user.profileUrl;
@@ -41,7 +41,12 @@
             const name = document.createElement('strong');
             const state = document.createElement('small');
             name.textContent = user.username;
-            state.textContent = Number(user.id) === Number(panel.dataset.currentUser) ? 'Siz' : user.role === 'admin' ? 'Admin' : 'Çevrimiçi';
+            state.textContent =
+                Number(user.id) === Number(panel.dataset.currentUser)
+                    ? 'Siz'
+                    : user.role === 'admin'
+                      ? 'Admin'
+                      : 'Çevrimiçi';
             info.append(name, state);
             item.append(avatar, info);
             fragment.appendChild(item);
@@ -52,7 +57,10 @@
     async function refresh() {
         if (document.hidden) return;
         try {
-            const response = await fetch(panel.dataset.usersUrl, {cache: 'no-store', headers: {'X-Requested-With': 'XMLHttpRequest'}});
+            const response = await fetch(panel.dataset.usersUrl, {
+                cache: 'no-store',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            });
             if (response.ok) render((await response.json()).users || []);
         } catch (error) {
             // Son başarılı liste ekranda kalır.
@@ -60,5 +68,8 @@
     }
 
     window.setInterval(refresh, 30000);
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
+    document.addEventListener('project:presence-updated', refresh);
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) refresh();
+    });
 })();

@@ -1,8 +1,116 @@
-<?= $this->extend('layouts/main') ?>
-<?= $this->section('content') ?>
-<div class="notifications-head"><div><h1>Bildirimler</h1><p>Etiketlemeler, yaklaşan görevler ve oyun davetleri burada görünür.</p></div><form method="post" action="<?= site_url('notifications/read-all') ?>"><?= csrf_field() ?><button class="button secondary" type="submit">Tümünü okundu yap</button></form></div>
-<?php if ($notifications === []): ?><div class="notification-empty">Henüz bildiriminiz yok.</div><?php else: ?><div class="notification-list">
-<?php foreach ($notifications as $notification): ?><article class="notification-card <?= empty($notification['read_at']) ? 'unread' : '' ?>"><div><p><span aria-hidden="true"><?= esc(\App\Models\NotificationModel::icon($notification['type'])) ?></span> <?= esc($notification['message']) ?></p><?php if (! empty($notification['actor_user_id'])): ?><a href="<?= site_url('users/' . $notification['actor_user_id']) ?>"><?= esc($notification['actor_username'] ?? 'Kullanıcı') ?></a><?php endif; ?><small><?= date('d.m.Y · H:i', strtotime($notification['created_at'])) ?><?= ! empty($notification['note_title']) ? ' · ' . esc($notification['note_title']) : '' ?></small></div><form method="post" action="<?= site_url('notifications/' . $notification['id'] . '/read') ?>"><?= csrf_field() ?><button class="button" type="submit"><?= $notification['type'] === 'game_invite' ? 'Katıl' : 'Aç' ?></button></form></article><?php endforeach; ?>
+<?= $this->extend("layouts/main") ?>
+<?= $this->section("content") ?>
+<div class="notifications-head">
+    <div>
+        <h1>Bildirimler</h1>
+        <p>Etiketlemeler, görevler, takvim hatırlatıcıları ve oyun davetleri burada görünür.</p>
+    </div>
+    <form method="post" action="<?= site_url(
+    "notifications/read-all",
+) ?>"><?= csrf_field() ?><button class="button secondary" type="submit">Tümünü okundu yap</button>
+    </form>
+</div>
+<?php if (
+    $notifications === []
+): ?><div class="notification-empty">Henüz bildiriminiz yok.</div><?php else: ?><div
+    class="notification-list">
+    <?php foreach ($notifications as $notification): ?><article class="notification-card <?= empty(
+    $notification["read_at"]
+)
+    ? "unread"
+    : "" ?>">
+        <div>
+            <p><span aria-hidden="true"><?= esc(
+    \App\Models\NotificationModel::icon($notification["type"]),
+) ?></span> <?= esc($notification["message"]) ?></p><?php if (
+    !empty($notification["actor_user_id"])
+): ?><a href="<?= site_url("users/" . $notification["actor_user_id"]) ?>"><?= esc(
+    $notification["actor_username"] ?? "Kullanıcı",
+) ?></a><?php endif; ?><small><?=
+date("d.m.Y · H:i", strtotime($notification["created_at"])) .
+(!empty($notification["note_title"]) ? " · " . esc($notification["note_title"]) : "")
+?></small>
+        </div>
+        <form method="post" action="<?= site_url(
+    "notifications/" . $notification["id"] . "/read",
+) ?>"><?= csrf_field() ?><button class="button" type="submit"><?= $notification["type"] ===
+"game_invite"
+    ? "Katıl"
+    : "Aç" ?></button></form>
+    </article><?php endforeach; ?>
 </div><?= $pager->links() ?><?php endif; ?>
-<style>.notifications-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:22px}.notifications-head h1{margin:0}.notifications-head p{color:#6b7280}.notification-list{display:grid;gap:12px}.notification-card{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:17px;border:1px solid #e5e7eb;border-radius:12px}.notification-card.unread{border-left:5px solid #2563eb;background:#eff6ff}.notification-card p{margin:0 0 6px}.notification-card small{display:block;margin-top:5px;color:#6b7280}.notification-empty{padding:40px;text-align:center;color:#6b7280}@media(max-width:600px){.notifications-head,.notification-card{align-items:stretch;flex-direction:column}.notification-card .button{width:100%}}html[data-theme="dark"] .notification-card{border-color:#475569}html[data-theme="dark"] .notification-card.unread{background:#172554}</style>
+<style>
+    .notifications-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 22px
+    }
+
+    .notifications-head h1 {
+        margin: 0
+    }
+
+    .notifications-head p {
+        color: #6b7280
+    }
+
+    .notification-list {
+        display: grid;
+        gap: 12px
+    }
+
+    .notification-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 17px;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px
+    }
+
+    .notification-card.unread {
+        border-left: 5px solid #2563eb;
+        background: #eff6ff
+    }
+
+    .notification-card p {
+        margin: 0 0 6px
+    }
+
+    .notification-card small {
+        display: block;
+        margin-top: 5px;
+        color: #6b7280
+    }
+
+    .notification-empty {
+        padding: 40px;
+        text-align: center;
+        color: #6b7280
+    }
+
+    @media(max-width:600px) {
+
+        .notifications-head,
+        .notification-card {
+            align-items: stretch;
+            flex-direction: column
+        }
+
+        .notification-card .button {
+            width: 100%
+        }
+    }
+
+    html[data-theme="dark"] .notification-card {
+        border-color: #475569
+    }
+
+    html[data-theme="dark"] .notification-card.unread {
+        background: #172554
+    }
+</style>
 <?= $this->endSection() ?>

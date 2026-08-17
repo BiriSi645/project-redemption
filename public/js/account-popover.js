@@ -12,14 +12,25 @@
 
     button.addEventListener('click', () => {
         const opening = panel.hidden;
-        document.querySelectorAll('#message-popover, #notification-popover').forEach(item => { item.hidden = true; });
-        document.querySelectorAll('[data-message-nav], [data-notification-button]').forEach(item => item.setAttribute('aria-expanded', 'false'));
+        document.querySelectorAll('#message-popover, #notification-popover').forEach((item) => {
+            item.hidden = true;
+        });
+        document
+            .querySelectorAll('[data-message-nav], [data-notification-button]')
+            .forEach((item) => item.setAttribute('aria-expanded', 'false'));
         if (opening) {
             panel.hidden = false;
             button.setAttribute('aria-expanded', 'true');
             button.setAttribute('aria-label', 'Hesap menüsünü kapat');
         } else close();
     });
-    document.addEventListener('click', event => { if (!panel.hidden && !event.target.closest('.account-popover-wrap')) close(); });
-    document.addEventListener('keydown', event => { if (event.key === 'Escape' && !panel.hidden) { close(); button.focus(); } });
+    document.addEventListener('click', (event) => {
+        if (!panel.hidden && !event.target.closest('.account-popover-wrap')) close();
+    });
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && !panel.hidden) {
+            close();
+            button.focus();
+        }
+    });
 })();

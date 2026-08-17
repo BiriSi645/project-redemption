@@ -23,8 +23,10 @@
     }
 
     function insertTranscript(field, transcript) {
-        const start = typeof field.selectionStart === 'number' ? field.selectionStart : field.value.length;
-        const end = typeof field.selectionEnd === 'number' ? field.selectionEnd : field.value.length;
+        const start =
+            typeof field.selectionStart === 'number' ? field.selectionStart : field.value.length;
+        const end =
+            typeof field.selectionEnd === 'number' ? field.selectionEnd : field.value.length;
         const before = field.value.slice(0, start);
         const after = field.value.slice(end);
         const leadingSpace = before && !/\s$/.test(before) ? ' ' : '';
@@ -36,14 +38,15 @@
         field.focus();
     }
 
-    fields.forEach(field => {
+    fields.forEach((field) => {
         const wrapper = document.createElement('div');
         const button = document.createElement('button');
         const status = document.createElement('span');
 
-        wrapper.className = field.tagName === 'TEXTAREA'
-            ? 'speech-input-wrap speech-textarea-wrap'
-            : 'speech-input-wrap speech-single-line-wrap';
+        wrapper.className =
+            field.tagName === 'TEXTAREA'
+                ? 'speech-input-wrap speech-textarea-wrap'
+                : 'speech-input-wrap speech-single-line-wrap';
         field.parentNode.insertBefore(wrapper, field);
         wrapper.appendChild(field);
 
@@ -91,7 +94,7 @@
                 setStatus(button, 'Dinleniyor… Bitirmek için mikrofona tekrar basın.');
             };
 
-            recognition.onresult = event => {
+            recognition.onresult = (event) => {
                 for (let index = event.resultIndex; index < event.results.length; index += 1) {
                     if (event.results[index].isFinal) {
                         insertTranscript(field, event.results[index][0].transcript);
@@ -99,14 +102,18 @@
                 }
             };
 
-            recognition.onerror = event => {
+            recognition.onerror = (event) => {
                 const messages = {
                     'not-allowed': 'Mikrofon izni verilmedi.',
                     'audio-capture': 'Kullanılabilir mikrofon bulunamadı.',
-                    'network': 'Ses tanıma servisine bağlanılamadı.',
+                    network: 'Ses tanıma servisine bağlanılamadı.',
                     'no-speech': 'Konuşma algılanamadı.',
                 };
-                setStatus(button, messages[event.error] || 'Sesli yazma sırasında bir hata oluştu.', true);
+                setStatus(
+                    button,
+                    messages[event.error] || 'Sesli yazma sırasında bir hata oluştu.',
+                    true,
+                );
             };
 
             recognition.onend = () => {

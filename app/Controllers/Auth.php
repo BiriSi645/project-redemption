@@ -4,9 +4,14 @@ namespace App\Controllers;
 
 use App\Models\UserModel;
 use App\Libraries\AuditLogger;
+use App\Libraries\AuthRateLimiter;
 
 class Auth extends BaseController
 {
+    private const EMAIL_VERIFICATION_TTL_SECONDS = 600;
+    private const EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS = 60;
+    private const EMAIL_VERIFICATION_MAX_ATTEMPTS = 5;
+    private const AUTH_RATE_WINDOW_SECONDS = 300;
     public function index()
     {
         if (session()->get('logged_in')) {
@@ -59,14 +64,8 @@ class Auth extends BaseController
         *
         * 32 byte random veri -> 64 karakter hexadecimal string.
         */
-        $verificationToken = bin2hex(random_bytes(32));
-
-        /*
-        * Gerçek tokenı veritabanında tutmuyoruz.
-        * SHA-256 hash'ini saklıyoruz.
-        */
-        $verificationTokenHash = hash('sha256', $verificationToken);
-
+        $verificationCode = $this->generateVerificationCode();
+        $now = time();
         $userModel = new UserModel();
 
         $data = [
@@ -79,12 +78,20 @@ class Auth extends BaseController
 
             'email_verified_at' => null,
 
-            'email_verification_token' => $verificationTokenHash,
+            'email_verification_token' =>
+                password_hash($verificationCode, PASSWORD_DEFAULT),
 
-            'email_verification_expires_at' => date(
-                'Y-m-d H:i:s',
-                strtotime('+30 minutes')
-            ),
+            'email_verification_expires_at' =>
+                date(
+                    'Y-m-d H:i:s',
+                    $now + self::EMAIL_VERIFICATION_TTL_SECONDS
+                ),
+
+            'email_verification_attempts' => 0,
+
+            'email_verification_sent_at' =>
+                date('Y-m-d H:i:s', $now),
+
         ];
 
         if (! $userModel->insert($data)) {
@@ -95,111 +102,74 @@ class Auth extends BaseController
         }
 
         $userId = (int) $userModel->getInsertID();
+        session()->set('verification_email', $data['email']);
 
-        /*
-        * Mailde bulunacak doğrulama bağlantısı.
-        */
-        $verificationUrl = site_url(
-            'verify-email/' . $verificationToken
-        );
+        if (! $this->sendVerificationCodeEmail(
+            $data,
+            $verificationCode,
+            false
+        )) {
+            $failedEmailUpdates = [
+                'email_verification_token' => null,
+                'email_verification_expires_at' => null,
+                'email_verification_attempts' => 0,
+                'email_verification_sent_at' => null,
+            ];
 
-        /*
-        * CodeIgniter Email servisi.
-        */
-        $email = service('email');
+            $userModel
+                ->skipValidation(true)
+                ->update($userId, $failedEmailUpdates);
 
-        $email->setFrom(
-            env('email.fromEmail'),
-            env('email.fromName', 'Project Redemption')
-        );
-
-        $email->setTo($data['email']);
-
-        $email->setSubject(
-            'Project Redemption - E-posta Doğrulama'
-        );
-
-        $email->setMailType('html');
-
-        $email->setMessage(
-            '
-            <h2>Project Redemption</h2>
-
-            <p>
-                Merhaba ' . esc($data['username']) . ',
-            </p>
-
-            <p>
-                Project Redemption hesabını oluşturduk.
-                Hesabını aktifleştirmek için aşağıdaki bağlantıya tıkla:
-            </p>
-
-            <p>
-                <a href="' . esc($verificationUrl) . '">
-                    E-posta adresimi doğrula
-                </a>
-            </p>
-
-            <p>
-                Bu bağlantı 30 dakika boyunca geçerlidir.
-            </p>
-
-            <p>
-                Eğer bu hesabı sen oluşturmadıysan
-                bu e-postayı görmezden gelebilirsin.
-            </p>
-            '
-        );
-
-        /*
-        * Mail gönderilemezse kullanıcı DB'de oluşturulmuş olur
-        * fakat doğrulanamaz.
-        *
-        * Şimdilik kullanıcıya bunu bildiriyoruz.
-        * Sonra "maili tekrar gönder" özelliği ekleyeceğiz.
-        */
-        if (! $email->send(false)) {
+            $data = array_merge(
+                $data,
+                $failedEmailUpdates
+            );
 
             log_message(
                 'error',
-                'Kullanıcı #{id} için doğrulama e-postası gönderilemedi. {debug}',
-                [
-                    'id'    => $userId,
-                    'debug' => $email->printDebugger(),
-                ]
+                'Kullanıcı #{id} için doğrulama kodu e-postası gönderilemedi.',
+                ['id' => $userId]
             );
 
             AuditLogger::record(
                 $userId,
                 'auth.register_email_failed',
-                'Kullanıcı oluşturuldu ancak doğrulama e-postası gönderilemedi',
+                'Kullanıcı oluşturuldu ancak doğrulama kodu e-postası gönderilemedi',
                 'POST',
                 'register',
                 500
             );
 
             return redirect()
-                ->to(site_url('login'))
+                ->to(site_url('verify-email'))
                 ->with(
                     'error',
-                    'Hesabınız oluşturuldu fakat doğrulama e-postası gönderilemedi.'
+                    'Hesabınız oluşturuldu fakat doğrulama kodu e-postası gönderilemedi.'
+                )
+                ->with(
+                    'verification_pending',
+                    $this->verificationPendingData($data)
                 );
         }
 
         AuditLogger::record(
             $userId,
             'auth.register',
-            'Yeni kullanıcı hesabı oluşturuldu ve doğrulama e-postası gönderildi',
+            'Yeni kullanıcı hesabı oluşturuldu ve doğrulama kodu gönderildi',
             'POST',
             'register',
             201
         );
 
         return redirect()
-            ->to(site_url('login'))
+            ->to(site_url('verify-email'))
             ->with(
                 'success',
-                'Hesabınız oluşturuldu. E-posta adresinize gönderilen doğrulama bağlantısına tıklayın.'
+                'Hesabınız oluşturuldu. E-posta adresinize gönderilen 6 haneli doğrulama kodunu girin.'
+            )
+            ->with(
+                'verification_pending',
+                $this->verificationPendingData($data)
             );
     }
 
@@ -212,6 +182,36 @@ class Auth extends BaseController
         return view('auth/login');
     }
 
+    public function verificationPage()
+    {
+        if (session()->get('logged_in')) {
+            return redirect()->to(site_url('dashboard'));
+        }
+
+        if ($this->rateLimited('register', 5)) {
+            return redirect()->back()->withInput()->with('error', 'Çok fazla kayıt denemesi yapıldı. Lütfen birkaç dakika sonra tekrar deneyin.');
+        }
+
+        $email = strtolower(trim((string) session()->get('verification_email')));
+        if ($email === '') {
+            return redirect()->to(site_url('login'))->with('error', 'Önce doğrulama kodu isteyin.');
+        }
+
+        $user = (new UserModel())->where('email', $email)->first();
+        if (! $user) {
+            session()->remove('verification_email');
+            return redirect()->to(site_url('login'))->with('error', 'Doğrulama isteği bulunamadı.');
+        }
+        if (! empty($user['email_verified_at'])) {
+            session()->remove('verification_email');
+            return redirect()->to(site_url('login'))->with('success', 'E-posta adresiniz zaten doğrulanmış.');
+        }
+
+        return view('auth/verify_email', [
+            'verification' => $this->verificationPendingData($user),
+        ]);
+    }
+
     public function storeLogin()
     {
         if (session()->get('logged_in')) {
@@ -219,6 +219,9 @@ class Auth extends BaseController
         }
 
         $email    = strtolower(trim((string) $this->request->getPost('email')));
+        if ($this->rateLimited('login:' . hash('sha256', $email), 10)) {
+            return redirect()->back()->withInput()->with('errors', ['login' => 'Çok fazla giriş denemesi yapıldı. Lütfen birkaç dakika sonra tekrar deneyin.']);
+        }
         $password = (string) $this->request->getPost('password');
         $user     = (new UserModel())->where('email', $email)->first();
 
@@ -235,23 +238,17 @@ class Auth extends BaseController
         }
         
         if (empty($user['email_verified_at'])) {
-
-            $expiresAt = $user['email_verification_expires_at'] ?? null;
-
-            $canResend = empty($expiresAt)
-                || strtotime($expiresAt) <= time();
-
-            return redirect()
-                ->back()
-                ->withInput()
-                ->with('verification_pending', [
-                    'email'      => $user['email'],
-                    'can_resend' => $canResend,
-                    'expires_at' => $expiresAt,
-                ]);
+        session()->set('verification_email', $user['email']);
+        return redirect()
+            ->to(site_url('verify-email'))
+            ->with(
+                'verification_pending',
+                $this->verificationPendingData($user)
+            );
         }
 
         session()->regenerate(true);
+        $this->clearRateLimit('login:' . hash('sha256', $email));
         session()->set([
             'user_id'   => (int) $user['id'],
             'username'  => $user['username'],
@@ -280,100 +277,267 @@ class Auth extends BaseController
         return redirect()->to(site_url('login'));
     }
 
-    public function verifyEmail(string $token)
-    {
-        if ($token === '') {
-            return redirect()
-                ->to(site_url('login'))
-                ->with('error', 'Geçersiz doğrulama bağlantısı.');
-        }
+    public function verifyEmail()
+{
+    if (session()->get('logged_in')) {
+        return redirect()->to(site_url('dashboard'));
+    }
 
-        $tokenHash = hash('sha256', $token);
+    $emailAddress = strtolower(trim((string) ($this->request->getPost('email') ?: session()->get('verification_email'))));
 
-        $userModel = new UserModel();
+    $code = trim(
+        (string) $this->request->getPost('code')
+    );
 
-        $user = $userModel
-            ->where('email_verification_token', $tokenHash)
-            ->first();
+    $userModel = new UserModel();
 
-        if (! $user) {
-            return redirect()
-                ->to(site_url('login'))
-                ->with(
-                    'error',
-                    'Doğrulama bağlantısı geçersiz veya daha önce kullanılmış.'
-                );
-        }
+    $user = $emailAddress !== ''
+        ? $userModel
+            ->where('email', $emailAddress)
+            ->first()
+        : null;
 
-        if (! empty($user['email_verified_at'])) {
-            return redirect()
-                ->to(site_url('login'))
-                ->with(
-                    'success',
-                    'E-posta adresiniz zaten doğrulanmış.'
-                );
-        }
-
-        if (
-            empty($user['email_verification_expires_at'])
-            || strtotime($user['email_verification_expires_at']) < time()
-        ) {
-            return redirect()
-                ->to(site_url('login'))
-                ->with(
-                    'error',
-                    'Doğrulama bağlantısının süresi dolmuş.'
-                );
-        }
-
-        $updated = $userModel
-            ->skipValidation(true)
-            ->update(
-                $user['id'],
-                [
-                    'email_verified_at' => date('Y-m-d H:i:s'),
-                    'email_verification_token' => null,
-                    'email_verification_expires_at' => null,
-                ]
-            );
-
-        if (! $updated) {
-            log_message(
+    if (! $user) {
+        session()->remove('verification_email');
+        return redirect()
+            ->to(site_url('login'))
+            ->with(
                 'error',
-                'Email verification update failed for user ' . $user['id']
+                'Doğrulama isteği geçersiz.'
             );
+    }
 
-            return redirect()
-                ->to(site_url('login'))
-                ->with(
-                    'error',
-                    'E-posta doğrulanırken bir hata oluştu.'
-                );
-        }
-
-        AuditLogger::record(
-            (int) $user['id'],
-            'auth.email_verified',
-            'Kullanıcının e-posta adresi doğrulandı',
-            'GET',
-            'verify-email',
-            200
-        );
-
+    if (! empty($user['email_verified_at'])) {
+        session()->remove('verification_email');
         return redirect()
             ->to(site_url('login'))
             ->with(
                 'success',
-                'E-posta adresiniz başarıyla doğrulandı. Şimdi giriş yapabilirsiniz.'
+                'E-posta adresiniz zaten doğrulanmış. Giriş yapabilirsiniz.'
             );
     }
+
+    $pending =
+        $this->verificationPendingData($user);
+    session()->set('verification_email', $user['email']);
+
+    if (! preg_match('/^\d{6}$/', $code)) {
+        return redirect()
+            ->to(site_url('verify-email'))
+            ->with(
+                'error',
+                'Doğrulama kodu 6 rakamdan oluşmalıdır.'
+            )
+            ->with(
+                'verification_pending',
+                $pending
+            );
+    }
+
+    $storedHash =
+        (string) (
+            $user['email_verification_token'] ?? ''
+        );
+
+    $expiresAt =
+        $user['email_verification_expires_at']
+        ?? null;
+
+    $attempts =
+        (int) (
+            $user['email_verification_attempts']
+            ?? 0
+        );
+
+    /*
+     * Eski link tabanlı token kayıtları
+     * password_hash formatında değildir.
+     */
+    if (
+        $storedHash === ''
+        || password_get_info($storedHash)['algo'] === null
+    ) {
+        return redirect()
+            ->to(site_url('verify-email'))
+            ->with(
+                'error',
+                'Eski doğrulama bağlantınız artık kullanılamıyor. Yeni bir doğrulama kodu isteyin.'
+            )
+            ->with(
+                'verification_pending',
+                array_merge(
+                    $pending,
+                    [
+                        'can_resend' => true,
+                        'can_verify' => false,
+                    ]
+                )
+            );
+    }
+
+    if (
+        empty($expiresAt)
+        || strtotime($expiresAt) <= time()
+    ) {
+        return redirect()
+            ->to(site_url('verify-email'))
+            ->with(
+                'error',
+                'Doğrulama kodunun süresi dolmuş. Yeni bir kod isteyin.'
+            )
+            ->with(
+                'verification_pending',
+                $pending
+            );
+    }
+
+    if (
+        $attempts
+        >= self::EMAIL_VERIFICATION_MAX_ATTEMPTS
+    ) {
+        return redirect()
+            ->to(site_url('verify-email'))
+            ->with(
+                'error',
+                'Çok fazla hatalı kod denemesi yapıldı. Yeni bir doğrulama kodu isteyin.'
+            )
+            ->with(
+                'verification_pending',
+                $pending
+            );
+    }
+
+    if (! password_verify($code, $storedHash)) {
+        $attempts++;
+
+        $updates = [
+            'email_verification_attempts'
+                => $attempts,
+        ];
+
+        if (
+            $attempts
+            >= self::EMAIL_VERIFICATION_MAX_ATTEMPTS
+        ) {
+            $updates['email_verification_token']
+                = null;
+
+            $updates['email_verification_expires_at']
+                = null;
+        }
+
+        $userModel
+            ->skipValidation(true)
+            ->update(
+                (int) $user['id'],
+                $updates
+            );
+
+        $user = array_merge(
+            $user,
+            $updates
+        );
+
+        $remaining = max(
+            0,
+            self::EMAIL_VERIFICATION_MAX_ATTEMPTS
+                - $attempts
+        );
+
+        AuditLogger::record(
+            (int) $user['id'],
+            'auth.email_verification_failed',
+            'Hatalı e-posta doğrulama kodu girildi',
+            'POST',
+            'verify-email',
+            422
+        );
+
+        $message = $remaining > 0
+            ? 'Doğrulama kodu hatalı. Kalan deneme hakkı: '
+                . $remaining . '.'
+            : 'Çok fazla hatalı deneme yapıldı. Yeni bir doğrulama kodu isteyin.';
+
+        return redirect()
+            ->to(site_url('verify-email'))
+            ->with(
+                'error',
+                $message
+            )
+            ->with(
+                'verification_pending',
+                $this->verificationPendingData($user)
+            );
+    }
+
+    $updated = $userModel
+        ->skipValidation(true)
+        ->update(
+            (int) $user['id'],
+            [
+                'email_verified_at'
+                    => date('Y-m-d H:i:s'),
+
+                'email_verification_token'
+                    => null,
+
+                'email_verification_expires_at'
+                    => null,
+
+                'email_verification_attempts'
+                    => 0,
+
+                'email_verification_sent_at'
+                    => null,
+            ]
+        );
+
+    if (! $updated) {
+        return redirect()
+            ->to(site_url('verify-email'))
+            ->with(
+                'error',
+                'E-posta doğrulanırken bir hata oluştu.'
+            )
+            ->with(
+                'verification_pending',
+                $pending
+            );
+    }
+
+    AuditLogger::record(
+        (int) $user['id'],
+        'auth.email_verified',
+        'Kullanıcının e-posta adresi 6 haneli kod ile doğrulandı',
+        'POST',
+        'verify-email',
+        200
+    );
+
+    session()->remove('verification_email');
+
+    return redirect()
+        ->to(site_url('login'))
+        ->with(
+            'success',
+            'E-posta adresiniz başarıyla doğrulandı. Şimdi giriş yapabilirsiniz.'
+        );
+}
 
 
     public function resendVerification()
     {
-        $emailAddress = strtolower(
-            trim((string) $this->request->getPost('email'))
-        );
+        if (session()->get('logged_in')) {
+            return redirect()->to(
+                site_url('dashboard')
+            );
+        }
+
+        $emailAddress = strtolower(trim((string) ($this->request->getPost('email') ?: session()->get('verification_email'))));
+
+        if ($this->rateLimited('verification:' . hash('sha256', $emailAddress), 5)) {
+            return redirect()->to(site_url('verify-email'))->with('error', 'Çok fazla kod isteği yapıldı. Lütfen birkaç dakika sonra tekrar deneyin.');
+        }
 
         if ($emailAddress === '') {
             return redirect()
@@ -394,16 +558,15 @@ class Auth extends BaseController
             return redirect()
                 ->to(site_url('login'))
                 ->with(
-                    'error',
-                    'Kullanıcı bulunamadı.'
+                    'success',
+                    'Hesap uygunsa doğrulama kodu gönderildi.'
                 );
         }
 
-        /*
-        * Kullanıcı zaten doğrulanmışsa
-        * tekrar mail göndermiyoruz.
-        */
+        session()->set('verification_email', $user['email']);
+
         if (! empty($user['email_verified_at'])) {
+            session()->remove('verification_email');
             return redirect()
                 ->to(site_url('login'))
                 ->with(
@@ -412,154 +575,139 @@ class Auth extends BaseController
                 );
         }
 
-        /*
-        * Eski link henüz geçerliyse
-        * yeni link üretme.
-        */
-        if (
-            ! empty($user['email_verification_expires_at'])
-            && strtotime($user['email_verification_expires_at']) > time()
-        ) {
-            return redirect()
-                ->to(site_url('login'))
-                ->with(
-                    'error',
-                    'Mevcut doğrulama bağlantınız hâlâ geçerli. '
-                    . 'Lütfen e-posta ve spam kutunuzu kontrol edin.'
-                );
+        $sentAt =
+            $user['email_verification_sent_at']
+            ?? null;
+
+        if (! empty($sentAt)) {
+            $secondsSinceSend =
+                time() - strtotime($sentAt);
+
+            if (
+                $secondsSinceSend
+                < self::EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS
+            ) {
+                $wait =
+                    self::EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS
+                    - max(0, $secondsSinceSend);
+
+                return redirect()
+                    ->to(site_url('verify-email'))
+                    ->with(
+                        'error',
+                        'Yeni kod istemek için '
+                        . $wait
+                        . ' saniye bekleyin.'
+                    )
+                    ->with(
+                        'verification_pending',
+                        $this->verificationPendingData($user)
+                    );
+            }
         }
 
-        /*
-        * Yeni doğrulama tokenı.
-        */
-        $verificationToken = bin2hex(
-            random_bytes(32)
-        );
+        $verificationCode =
+            $this->generateVerificationCode();
 
-        $verificationTokenHash = hash(
-            'sha256',
-            $verificationToken
-        );
+        $now = time();
 
-        /*
-        * Database'e yeni token hash'i ve
-        * yeni 30 dakikalık süre yaz.
-        */
+        $updates = [
+            'email_verification_token' =>
+                password_hash(
+                    $verificationCode,
+                    PASSWORD_DEFAULT
+                ),
+
+            'email_verification_expires_at' =>
+                date(
+                    'Y-m-d H:i:s',
+                    $now
+                    + self::EMAIL_VERIFICATION_TTL_SECONDS
+                ),
+
+            'email_verification_attempts' => 0,
+
+            'email_verification_sent_at' =>
+                date('Y-m-d H:i:s', $now),
+        ];
+
         $updated = $userModel
             ->skipValidation(true)
             ->update(
-                $user['id'],
-                [
-                    'email_verification_token' =>
-                        $verificationTokenHash,
-
-                    'email_verification_expires_at' =>
-                        date(
-                            'Y-m-d H:i:s',
-                            strtotime('+30 minutes')
-                        ),
-                ]
+                (int) $user['id'],
+                $updates
             );
 
         if (! $updated) {
             return redirect()
-                ->to(site_url('login'))
+                ->to(site_url('verify-email'))
                 ->with(
                     'error',
-                    'Yeni doğrulama bağlantısı oluşturulamadı.'
+                    'Yeni doğrulama kodu oluşturulamadı.'
                 );
         }
 
-        /*
-        * Yeni doğrulama URL'si.
-        */
-        $verificationUrl = site_url(
-            'verify-email/' . $verificationToken
+        $user = array_merge(
+            $user,
+            $updates
         );
 
-        /*
-        * Mail gönder.
-        */
-        $email = service('email');
-
-        $email->setFrom(
-            env('email.fromEmail'),
-            env(
-                'email.fromName',
-                'Project Redemption'
+        if (
+            ! $this->sendVerificationCodeEmail(
+                $user,
+                $verificationCode,
+                true
             )
-        );
+        ) {
+            $failedEmailUpdates = [
+                'email_verification_token' => null,
+                'email_verification_expires_at' => null,
+                'email_verification_attempts' => 0,
+                'email_verification_sent_at' => null,
+            ];
 
-        $email->setTo($user['email']);
+            $userModel
+                ->skipValidation(true)
+                ->update(
+                    (int) $user['id'],
+                    $failedEmailUpdates
+                );
 
-        $email->setSubject(
-            'Project Redemption - Yeni E-posta Doğrulama Bağlantısı'
-        );
-
-        $email->setMailType('html');
-
-        $email->setMessage(
-            '
-            <h2>Project Redemption</h2>
-
-            <p>
-                Merhaba ' . esc($user['username']) . ',
-            </p>
-
-            <p>
-                Yeni e-posta doğrulama bağlantınız hazır.
-            </p>
-
-            <p>
-                <a href="' . esc($verificationUrl) . '">
-                    E-posta adresimi doğrula
-                </a>
-            </p>
-
-            <p>
-                Bu bağlantı 30 dakika boyunca geçerlidir.
-            </p>
-
-            <p>
-                Bu işlemi siz yapmadıysanız
-                bu e-postayı görmezden gelebilirsiniz.
-            </p>
-            '
-        );
-
-        if (! $email->send(false)) {
-
-            log_message(
-                'error',
-                'Doğrulama e-postası tekrar gönderilemedi. User ID: '
-                . $user['id']
-                . ' Debug: '
-                . $email->printDebugger()
+            $user = array_merge(
+                $user,
+                $failedEmailUpdates
             );
 
             return redirect()
-                ->to(site_url('login'))
+                ->to(site_url('verify-email'))
                 ->with(
                     'error',
-                    'Doğrulama e-postası gönderilemedi.'
+                    'Doğrulama kodu e-postası gönderilemedi. Tekrar deneyebilirsiniz.'
+                )
+                ->with(
+                    'verification_pending',
+                    $this->verificationPendingData($user)
                 );
         }
 
         AuditLogger::record(
             (int) $user['id'],
             'auth.verification_resent',
-            'Yeni e-posta doğrulama bağlantısı gönderildi',
+            'Yeni 6 haneli e-posta doğrulama kodu gönderildi',
             'POST',
             'resend-verification',
             200
         );
 
         return redirect()
-            ->to(site_url('login'))
+            ->to(site_url('verify-email'))
             ->with(
                 'success',
-                'Yeni doğrulama bağlantısı e-posta adresinize gönderildi. '
-                . 'Lütfen gelen kutunuzu ve spam klasörünüzü kontrol edin.'
+                'Yeni 6 haneli doğrulama kodu e-posta adresinize gönderildi.'
+            )
+            ->with(
+                'verification_pending',
+                $this->verificationPendingData($user)
             );
     }
 
@@ -581,6 +729,10 @@ class Auth extends BaseController
                     'error',
                     'E-posta adresi zorunludur.'
                 );
+        }
+
+        if ($this->rateLimited('password-reset:' . hash('sha256', $emailAddress), 5)) {
+            return redirect()->to(site_url('forgot-password'))->with('success', 'Bu e-posta adresi sistemde kayıtlıysa şifre sıfırlama bağlantısı gönderildi.');
         }
 
         $userModel = new UserModel();
@@ -906,4 +1058,198 @@ class Auth extends BaseController
                 'Şifreniz başarıyla değiştirildi. Yeni şifrenizle giriş yapabilirsiniz.'
             );
     }
+    private function generateVerificationCode(): string
+    {
+        return str_pad(
+            (string) random_int(0, 999999),
+            6,
+            '0',
+            STR_PAD_LEFT
+        );
     }
+
+    private function rateLimited(string $action, int $maximumAttempts): bool
+    {
+        return (new AuthRateLimiter(cache(), self::AUTH_RATE_WINDOW_SECONDS))->hit(
+            $action,
+            (string) $this->request->getIPAddress(),
+            $maximumAttempts
+        );
+    }
+
+    private function clearRateLimit(string $action): void
+    {
+        (new AuthRateLimiter(cache(), self::AUTH_RATE_WINDOW_SECONDS))->clear(
+            $action,
+            (string) $this->request->getIPAddress()
+        );
+    }
+
+    private function verificationPendingData(
+        array $user
+    ): array {
+        $now = time();
+
+        $expiresAt =
+            $user['email_verification_expires_at']
+            ?? null;
+
+        $sentAt =
+            $user['email_verification_sent_at']
+            ?? null;
+
+        $attempts =
+            (int) (
+                $user['email_verification_attempts']
+                ?? 0
+            );
+
+        $storedHash =
+            (string) (
+                $user['email_verification_token']
+                ?? ''
+            );
+
+        $isNewCodeHash =
+            $storedHash !== ''
+            && password_get_info($storedHash)['algo']
+                !== null;
+
+        $expiresTimestamp =
+            ! empty($expiresAt)
+            ? strtotime($expiresAt)
+            : false;
+
+        $sentTimestamp =
+            ! empty($sentAt)
+            ? strtotime($sentAt)
+            : false;
+
+        $secondsSinceSend =
+            $sentTimestamp !== false
+            ? max(
+                0,
+                $now - $sentTimestamp
+            )
+            : self::EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS;
+
+        return [
+            'email' =>
+                (string) (
+                    $user['email']
+                    ?? ''
+                ),
+
+            'can_verify' =>
+                $isNewCodeHash
+                && $expiresTimestamp !== false
+                && $expiresTimestamp > $now
+                && $attempts
+                    < self::EMAIL_VERIFICATION_MAX_ATTEMPTS,
+
+            'can_resend' =>
+                ! $isNewCodeHash
+                || $secondsSinceSend
+                    >= self::EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS,
+
+            'expires_at' =>
+                $expiresAt,
+
+            'attempts_remaining' =>
+                max(
+                    0,
+                    self::EMAIL_VERIFICATION_MAX_ATTEMPTS
+                    - $attempts
+                ),
+
+            'resend_after_seconds' =>
+                max(
+                    0,
+                    self::EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS
+                    - $secondsSinceSend
+                ),
+        ];
+    }
+
+    private function sendVerificationCodeEmail(
+        array $user,
+        string $verificationCode,
+        bool $isResend
+    ): bool {
+        $email = service('email');
+
+        $email->setFrom(
+            env('email.fromEmail'),
+            env(
+                'email.fromName',
+                'Project Redemption'
+            )
+        );
+
+        $email->setTo(
+            (string) $user['email']
+        );
+
+        $email->setSubject(
+            $isResend
+                ? 'Project Redemption - Yeni Doğrulama Kodunuz'
+                : 'Project Redemption - E-posta Doğrulama Kodunuz'
+        );
+
+        $email->setMailType('html');
+
+        $username = esc(
+            (string) (
+                $user['username'] ?? ''
+            )
+        );
+
+        $code = esc($verificationCode);
+
+        $email->setMessage('
+            <h2>Project Redemption</h2>
+
+            <p>
+                Merhaba ' . $username . ',
+            </p>
+
+            <p>
+                E-posta adresinizi doğrulamak için
+                aşağıdaki 6 haneli kodu giriş
+                ekranına yazın:
+            </p>
+
+            <p
+                style="
+                    font-size:32px;
+                    font-weight:700;
+                    letter-spacing:8px;
+                    margin:24px 0;
+                "
+            >
+                ' . $code . '
+            </p>
+
+            <p>
+                Bu kod 10 dakika boyunca geçerlidir.
+            </p>
+
+            <p>
+                Bu işlemi siz yapmadıysanız
+                bu e-postayı görmezden gelebilirsiniz.
+            </p>
+        ');
+
+        if ($email->send(false)) {
+            return true;
+        }
+
+        log_message(
+            'error',
+            'Doğrulama kodu e-postası gönderilemedi: '
+            . $email->printDebugger()
+        );
+
+        return false;
+    }
+}

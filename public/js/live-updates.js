@@ -8,13 +8,23 @@
     const memory = new Map();
     let loading = false;
     let previousMessageUnread = null;
+    let realtimeConnected = false;
+    let refreshTimer = null;
 
     function stored(key) {
-        try { return sessionStorage.getItem(key); } catch (error) { return memory.get(key) ?? null; }
+        try {
+            return sessionStorage.getItem(key);
+        } catch (error) {
+            return memory.get(key) ?? null;
+        }
     }
 
     function store(key, value) {
-        try { sessionStorage.setItem(key, value); } catch (error) { memory.set(key, value); }
+        try {
+            sessionStorage.setItem(key, value);
+        } catch (error) {
+            memory.set(key, value);
+        }
     }
 
     function setBadge(target, total) {
@@ -88,31 +98,65 @@
             if (!data.success) return;
 
             const messageUnread = Number(data.messageUnread) || 0;
-            document.querySelectorAll('[data-message-nav]').forEach(target => setBadge(target, messageUnread));
+            document
+                .querySelectorAll('[data-message-nav]')
+                .forEach((target) => setBadge(target, messageUnread));
             const notificationUnread = Number(data.notificationUnread) || 0;
-            document.querySelectorAll('[data-notification-nav]').forEach(target => setBadge(target, notificationUnread));
+            document
+                .querySelectorAll('[data-notification-nav]')
+                .forEach((target) => setBadge(target, notificationUnread));
 
-            const messageChanged = processItem('pr-live-message', data.latestMessage, !document.getElementById('direct-chat'));
-            const notificationChanged = processItem('pr-live-notification', data.latestNotification);
-            const duplicateNote = notificationChanged && data.latestNotification?.noteId === data.latestPublicNote?.id;
+            const messageChanged = processItem(
+                'pr-live-message',
+                data.latestMessage,
+                !document.getElementById('direct-chat'),
+            );
+            const notificationChanged = processItem(
+                'pr-live-notification',
+                data.latestNotification,
+            );
+            const duplicateNote =
+                notificationChanged &&
+                data.latestNotification?.noteId === data.latestPublicNote?.id;
             processItem('pr-live-public-note', data.latestPublicNote, !duplicateNote);
 
-            if (messageChanged || (previousMessageUnread !== null && previousMessageUnread !== messageUnread)) {
+            if (
+                messageChanged ||
+                (previousMessageUnread !== null && previousMessageUnread !== messageUnread)
+            ) {
                 document.dispatchEvent(new CustomEvent('project:messages-updated'));
             }
-            if (notificationChanged) document.dispatchEvent(new CustomEvent('project:notifications-updated'));
+            if (notificationChanged)
+                document.dispatchEvent(new CustomEvent('project:notifications-updated'));
             previousMessageUnread = messageUnread;
         } catch (error) {
             // Geçici bağlantı sorununda bir sonraki kontrolü bekle.
         } finally {
             loading = false;
+            schedule();
         }
     }
 
+    function schedule() {
+        window.clearTimeout(refreshTimer);
+        // WebSocket olayları anlık yeniler. Bu düşük frekanslı kontrol görev ve
+        // takvim hatırlatıcılarını üretmek ve kaçırılan olayları telafi etmek içindir.
+        refreshTimer = window.setTimeout(refresh, realtimeConnected ? 60000 : 10000);
+    }
+
     refresh();
-    const interval = window.setInterval(refresh, 10000);
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) refresh();
+    });
+    document.addEventListener('project:realtime-connected', () => {
+        realtimeConnected = true;
+        schedule();
+    });
+    document.addEventListener('project:realtime-disconnected', () => {
+        realtimeConnected = false;
+        refresh();
+    });
     document.addEventListener('project:realtime-message', refresh);
     document.addEventListener('project:realtime-notification', refresh);
-    window.addEventListener('pagehide', () => window.clearInterval(interval), { once: true });
+    window.addEventListener('pagehide', () => window.clearTimeout(refreshTimer), { once: true });
 })();

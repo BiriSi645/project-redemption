@@ -15,19 +15,29 @@ class Users extends BaseController
         $userId = (int) session()->get('user_id');
         $username = trim((string) $this->request->getPost('username'));
         $bio = trim((string) $this->request->getPost('bio'));
+        $profileUrl = trim((string) $this->request->getPost('profile_url'));
+        if ($profileUrl !== '' && ! preg_match('#^https?://#i', $profileUrl)) {
+            $profileUrl = 'https://' . $profileUrl;
+        }
         $rules = [
             'username' => "required|min_length[3]|max_length[100]|is_unique[users.username,id,{$userId}]",
             'bio' => 'permit_empty|max_length[300]',
+            'profile_url' => 'permit_empty|max_length[500]',
         ];
 
-        if (! $this->validateData(['username' => $username, 'bio' => $bio], $rules)) {
+        if (! $this->validateData(['username' => $username, 'bio' => $bio, 'profile_url' => $profileUrl], $rules)) {
             return redirect()->to(site_url('users/' . $userId))
                 ->withInput()->with('errors', $this->validator->getErrors());
+        }
+        if ($profileUrl !== '' && (! filter_var($profileUrl, FILTER_VALIDATE_URL) || ! in_array(strtolower((string) parse_url($profileUrl, PHP_URL_SCHEME)), ['http', 'https'], true))) {
+            return redirect()->to(site_url('users/' . $userId))
+                ->withInput()->with('errors', ['profile_url' => 'Geçerli bir profil bağlantısı girin.']);
         }
 
         (new UserModel())->skipValidation(true)->update($userId, [
             'username' => $username,
             'bio' => $bio === '' ? null : $bio,
+            'profile_url' => $profileUrl === '' ? null : $profileUrl,
         ]);
         session()->set('username', $username);
 
@@ -36,7 +46,7 @@ class Users extends BaseController
 
     public function show(int $id)
     {
-        $user = (new UserModel())->select('id, username, bio, role, experience_points, created_at')->find($id);
+        $user = (new UserModel())->select('id, username, bio, profile_url, role, experience_points, created_at')->find($id);
         if (! $user) {
             throw PageNotFoundException::forPageNotFound('Kullanıcı bulunamadı.');
         }
@@ -54,7 +64,7 @@ class Users extends BaseController
             throw PageNotFoundException::forPageNotFound('Kullanıcı bulunamadı.');
         }
 
-        $user = (new UserModel())->select('id, username, bio, role, experience_points, created_at')->where('username', $username)->first();
+        $user = (new UserModel())->select('id, username, bio, profile_url, role, experience_points, created_at')->where('username', $username)->first();
         if (! $user) {
             throw PageNotFoundException::forPageNotFound('Kullanıcı bulunamadı.');
         }

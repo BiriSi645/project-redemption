@@ -16,7 +16,7 @@ class Announcements extends BaseController
 
         return view('announcements/show', [
             'title' => $announcement['title'],
-            'announcement' => $announcement,
+            'announcement' => $announcement ,
         ]);
     }
 }

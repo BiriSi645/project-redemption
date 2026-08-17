@@ -2,9 +2,12 @@
 
 namespace App\Controllers;
 
+use App\Models\CalendarReminderModel;
 use App\Models\JournalEntryModel;
+use App\Models\NotificationModel;
 use App\Models\TaskModel;
 use DateTimeImmutable;
+use DateTimeZone;
 
 class Calendar extends BaseController
 {
@@ -30,7 +33,7 @@ class Calendar extends BaseController
 
         $type = (string) $this->request->getGet('type');
         $taskStatus = (string) $this->request->getGet('status');
-        $type = in_array($type, ['all', 'tasks', 'journals'], true) ? $type : 'all';
+        $type = in_array($type, ['all', 'tasks', 'journals', 'reminders'], true) ? $type : 'all';
         $taskStatus = in_array($taskStatus, ['all', 'pending', 'completed'], true) ? $taskStatus : 'all';
 
         $firstDay = DateTimeImmutable::createFromFormat('!Y-m-d', $month . '-01') ?: new DateTimeImmutable('first day of this month');
@@ -38,7 +41,7 @@ class Calendar extends BaseController
         $userId   = (int) session()->get('user_id');
 
         $tasks = [];
-        if ($type !== 'journals') {
+        if (in_array($type, ['all', 'tasks'], true)) {
             $taskModel = new TaskModel();
             $taskModel->where('user_id', $userId)
                 ->where('due_date >=', $firstDay->format('Y-m-d'))
@@ -49,11 +52,18 @@ class Calendar extends BaseController
             $tasks = $taskModel->orderBy('due_time', 'ASC')->findAll();
         }
 
-        $entries = $type === 'tasks' ? [] : (new JournalEntryModel())
+        $entries = ! in_array($type, ['all', 'journals'], true) ? [] : (new JournalEntryModel())
             ->where('user_id', $userId)
             ->where('entry_date >=', $firstDay->format('Y-m-d'))
             ->where('entry_date <=', $lastDay->format('Y-m-d'))
             ->orderBy('entry_date', 'ASC')
+            ->findAll();
+
+        $reminders = ! in_array($type, ['all', 'reminders'], true) ? [] : (new CalendarReminderModel())
+            ->where('user_id', $userId)
+            ->where('remind_at >=', $firstDay->format('Y-m-d 00:00:00'))
+            ->where('remind_at <=', $lastDay->format('Y-m-d 23:59:59'))
+            ->orderBy('remind_at', 'ASC')
             ->findAll();
 
         $events = [];
@@ -62,6 +72,9 @@ class Calendar extends BaseController
         }
         foreach ($entries as $entry) {
             $events[$entry['entry_date']][] = ['type' => 'journal', 'data' => $entry];
+        }
+        foreach ($reminders as $reminder) {
+            $events[substr($reminder['remind_at'], 0, 10)][] = ['type' => 'reminder', 'data' => $reminder];
         }
 
         return view('calendar/index', [
@@ -75,8 +88,57 @@ class Calendar extends BaseController
             'activeTaskStatus' => $taskStatus,
             'taskCount' => count($tasks),
             'journalCount' => count($entries),
+            'reminderCount' => count($reminders),
             'selectedDate' => $selectedDate,
         ]);
+    }
+
+    public function storeReminder()
+    {
+        if (! $this->validate([
+            'title' => 'required|min_length[2]|max_length[160]',
+            'details' => 'permit_empty|max_length[1000]',
+            'remind_at' => 'required|regex_match[/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/]',
+        ])) {
+            return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
+        }
+
+        $localValue = (string) $this->request->getPost('remind_at');
+        $reminderTimezone = new DateTimeZone('Europe/Istanbul');
+        $remindAt = DateTimeImmutable::createFromFormat('!Y-m-d\TH:i', $localValue, $reminderTimezone);
+        if (! $remindAt || $remindAt->format('Y-m-d\TH:i') !== $localValue) {
+            return redirect()->back()->withInput()->with('error', 'Hatırlatıcı tarihi geçerli değil.');
+        }
+        if ($remindAt->getTimestamp() <= (new DateTimeImmutable('now', $reminderTimezone))->getTimestamp()) {
+            return redirect()->back()->withInput()->with('error', 'Hatırlatıcı zamanı gelecekte olmalıdır.');
+        }
+
+        (new CalendarReminderModel())->insert([
+            'user_id' => (int) session()->get('user_id'),
+            'title' => trim((string) $this->request->getPost('title')),
+            'details' => trim((string) $this->request->getPost('details')) ?: null,
+            'remind_at' => $remindAt->format('Y-m-d H:i:s'),
+        ]);
+
+        return redirect()->to(site_url('calendar') . '?date=' . $remindAt->format('Y-m-d'))
+            ->with('success', 'Hatırlatıcı oluşturuldu.');
+    }
+
+    public function deleteReminder(int $id)
+    {
+        $userId = (int) session()->get('user_id');
+        $model = new CalendarReminderModel();
+        $reminder = $model->where('user_id', $userId)->find($id);
+        if (! $reminder) {
+            return redirect()->back()->with('error', 'Hatırlatıcı bulunamadı.');
+        }
+
+        $model->delete($id);
+        (new NotificationModel())->where('user_id', $userId)
+            ->like('notification_key', 'calendar_reminder:' . $id . ':', 'after')
+            ->delete();
+
+        return redirect()->back()->with('success', 'Hatırlatıcı silindi.');
     }
 
     private function monthLabel(int $month): string

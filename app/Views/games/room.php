@@ -1,36 +1,520 @@
-<?= $this->extend('layouts/main') ?>
-<?= $this->section('content') ?>
+<?= $this->extend("layouts/main") ?>
+<?= $this->section("content") ?>
 <style>
-    .room-page{max-width:980px;margin:0 auto}.room-head{display:flex;justify-content:space-between;align-items:flex-start;gap:15px;margin-bottom:16px}.room-head h1{margin:0 0 6px}.room-head p{margin:0;color:#6b7280}.room-code{display:inline-flex;align-items:center;gap:8px;padding:9px 12px;border:1px dashed #60a5fa;border-radius:9px;background:#eff6ff;color:#1d4ed8;font-weight:800;letter-spacing:.12em}.room-meta{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:10px;margin-bottom:16px;padding:13px;border:1px solid #e5e7eb;border-radius:12px;background:#fff}.room-player{padding:10px;border-radius:9px;background:#eff6ff}.room-player.guest{background:#f3e8ff;text-align:right}.room-player span{display:block;color:#6b7280;font-size:11px}.room-vs{font-weight:800;color:#6b7280}.room-status{padding:12px;margin-bottom:14px;border-radius:9px;background:#fef3c7;color:#92400e;text-align:center}.room-status.playing{background:#dcfce7;color:#166534}.room-status.completed{background:#dbeafe;color:#1e40af}.shared-board{display:grid;width:min(100%,580px);margin:0 auto;background:#1f2937;gap:1px;user-select:none}.shared-board.sudoku{grid-template-columns:repeat(9,1fr);border:3px solid #1f2937}.shared-board.mines{padding:8px;border-radius:12px;gap:2px}.shared-cell{display:grid;aspect-ratio:1;place-items:center;padding:0;border:0;background:#fff;color:#111827;font:700 clamp(13px,3.4vw,24px)/1 Arial;cursor:pointer}.sudoku .shared-cell:nth-child(3n):not(:nth-child(9n)){border-right:2px solid #1f2937}.sudoku .shared-cell:nth-child(n+19):nth-child(-n+27),.sudoku .shared-cell:nth-child(n+46):nth-child(-n+54){border-bottom:2px solid #1f2937}.shared-cell.given{background:#e2e8f0;cursor:default}.shared-cell.host-move{background:#dbeafe;color:#1d4ed8}.shared-cell.guest-move{background:#f3e8ff;color:#7e22ce}.shared-cell.selected{outline:3px solid #2563eb;outline-offset:-3px}.mines .shared-cell{border-radius:3px;background:#cbd5e1;font-size:clamp(10px,2.7vw,17px)}.mines .shared-cell.revealed{background:#f8fafc}.mines .shared-cell.flagged{background:#fde68a}.mines .shared-cell.mine{background:#fecaca}.room-controls{display:flex;justify-content:center;gap:7px;margin:13px auto;max-width:580px}.number-pad{display:grid;grid-template-columns:repeat(9,1fr)}.number-pad button,.room-mode{min-height:43px;padding:7px;border:1px solid #bfdbfe;border-radius:8px;background:#eff6ff;color:#1d4ed8;font:700 18px Arial;cursor:pointer}.room-mode{flex:1;font:700 14px inherit}.room-mode.active{background:#2563eb;color:#fff}.room-legend{display:flex;justify-content:center;gap:16px;color:#6b7280;font-size:13px}.room-legend i{display:inline-block;width:12px;height:12px;margin-right:5px;border-radius:3px;background:#dbeafe}.room-legend .guest-dot{background:#f3e8ff}html[data-theme="dark"] .room-meta{background:#1e293b;border-color:#334155}html[data-theme="dark"] .room-player{background:#172554}html[data-theme="dark"] .room-player.guest{background:#3b0764}html[data-theme="dark"] .room-code{background:#172554}html[data-theme="dark"] .shared-cell{background:#1e293b;color:#e2e8f0}html[data-theme="dark"] .shared-cell.given{background:#334155}html[data-theme="dark"] .shared-cell.host-move{background:#1e3a8a}html[data-theme="dark"] .shared-cell.guest-move{background:#581c87}@media(max-width:650px){.room-head{flex-direction:column}.room-meta{grid-template-columns:1fr}.room-player.guest{text-align:left}.room-vs{text-align:center}.shared-board.mines{padding:5px}.room-controls{gap:3px}}
+    .room-page {
+        max-width: 980px;
+        margin: 0 auto
+    }
+
+    .room-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 15px;
+        margin-bottom: 16px
+    }
+
+    .room-head h1 {
+        margin: 0 0 6px
+    }
+
+    .room-head p {
+        margin: 0;
+        color: #6b7280
+    }
+
+    .room-code {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 9px 12px;
+        border: 1px dashed #60a5fa;
+        border-radius: 9px;
+        background: #eff6ff;
+        color: #1d4ed8;
+        font-weight: 800;
+        letter-spacing: .12em
+    }
+
+    .room-meta {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 16px;
+        padding: 13px;
+        border: 1px solid #e5e7eb;
+        border-radius: 12px;
+        background: #fff
+    }
+
+    .room-player {
+        padding: 10px;
+        border-radius: 9px;
+        background: #eff6ff
+    }
+
+    .room-player.guest {
+        background: #f3e8ff;
+        text-align: right
+    }
+
+    .room-player span {
+        display: block;
+        color: #6b7280;
+        font-size: 11px
+    }
+
+    .room-vs {
+        font-weight: 800;
+        color: #6b7280
+    }
+
+    .room-status {
+        padding: 12px;
+        margin-bottom: 14px;
+        border-radius: 9px;
+        background: #fef3c7;
+        color: #92400e;
+        text-align: center
+    }
+
+    .room-status.playing {
+        background: #dcfce7;
+        color: #166534
+    }
+
+    .room-status.completed {
+        background: #dbeafe;
+        color: #1e40af
+    }
+
+    .shared-board {
+        display: grid;
+        width: min(100%, 580px);
+        margin: 0 auto;
+        background: #1f2937;
+        gap: 1px;
+        user-select: none
+    }
+
+    .shared-board.sudoku {
+        grid-template-columns: repeat(9, 1fr);
+        border: 3px solid #1f2937
+    }
+
+    .shared-board.mines {
+        padding: 8px;
+        border-radius: 12px;
+        gap: 2px
+    }
+
+    .shared-cell {
+        display: grid;
+        aspect-ratio: 1;
+        place-items: center;
+        padding: 0;
+        border: 0;
+        background: #fff;
+        color: #111827;
+        font: 700 clamp(13px, 3.4vw, 24px)/1 Arial;
+        cursor: pointer
+    }
+
+    .sudoku .shared-cell:nth-child(3n):not(:nth-child(9n)) {
+        border-right: 2px solid #1f2937
+    }
+
+    .sudoku .shared-cell:nth-child(n+19):nth-child(-n+27),
+    .sudoku .shared-cell:nth-child(n+46):nth-child(-n+54) {
+        border-bottom: 2px solid #1f2937
+    }
+
+    .shared-cell.given {
+        background: #e2e8f0;
+        cursor: default
+    }
+
+    .shared-cell.host-move {
+        background: #dbeafe;
+        color: #1d4ed8
+    }
+
+    .shared-cell.guest-move {
+        background: #f3e8ff;
+        color: #7e22ce
+    }
+
+    .shared-cell.selected {
+        outline: 3px solid #2563eb;
+        outline-offset: -3px
+    }
+
+    .mines .shared-cell {
+        border-radius: 3px;
+        background: #cbd5e1;
+        font-size: clamp(10px, 2.7vw, 17px)
+    }
+
+    .mines .shared-cell.revealed {
+        background: #f8fafc
+    }
+
+    .mines .shared-cell.flagged {
+        background: #fde68a
+    }
+
+    .mines .shared-cell.mine {
+        background: #fecaca
+    }
+
+    .room-controls {
+        display: flex;
+        justify-content: center;
+        gap: 7px;
+        margin: 13px auto;
+        max-width: 580px
+    }
+
+    .number-pad {
+        display: grid;
+        grid-template-columns: repeat(9, 1fr)
+    }
+
+    .number-pad button,
+    .room-mode {
+        min-height: 43px;
+        padding: 7px;
+        border: 1px solid #bfdbfe;
+        border-radius: 8px;
+        background: #eff6ff;
+        color: #1d4ed8;
+        font: 700 18px Arial;
+        cursor: pointer
+    }
+
+    .room-mode {
+        flex: 1;
+        font: 700 14px inherit
+    }
+
+    .room-mode.active {
+        background: #2563eb;
+        color: #fff
+    }
+
+    .room-legend {
+        display: flex;
+        justify-content: center;
+        gap: 16px;
+        color: #6b7280;
+        font-size: 13px
+    }
+
+    .room-legend i {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        margin-right: 5px;
+        border-radius: 3px;
+        background: #dbeafe
+    }
+
+    .room-legend .guest-dot {
+        background: #f3e8ff
+    }
+
+    html[data-theme="dark"] .room-meta {
+        background: #1e293b;
+        border-color: #334155
+    }
+
+    html[data-theme="dark"] .room-player {
+        background: #172554
+    }
+
+    html[data-theme="dark"] .room-player.guest {
+        background: #3b0764
+    }
+
+    html[data-theme="dark"] .room-code {
+        background: #172554
+    }
+
+    html[data-theme="dark"] .shared-cell {
+        background: #1e293b;
+        color: #e2e8f0
+    }
+
+    html[data-theme="dark"] .shared-cell.given {
+        background: #334155
+    }
+
+    html[data-theme="dark"] .shared-cell.host-move {
+        background: #1e3a8a
+    }
+
+    html[data-theme="dark"] .shared-cell.guest-move {
+        background: #581c87
+    }
+
+    @media(max-width:650px) {
+        .room-head {
+            flex-direction: column
+        }
+
+        .room-meta {
+            grid-template-columns: 1fr
+        }
+
+        .room-player.guest {
+            text-align: left
+        }
+
+        .room-vs {
+            text-align: center
+        }
+
+        .shared-board.mines {
+            padding: 5px
+        }
+
+        .room-controls {
+            gap: 3px
+        }
+    }
 </style>
 <style>
-    .invite-panel{padding:14px;margin:13px 0 16px;border:1px solid #dbeafe;border-radius:11px;background:#f8fafc}.invite-panel strong{display:block;margin-bottom:9px}.invite-users{display:flex;gap:8px;overflow-x:auto}.invite-user{display:flex;flex:0 0 auto;align-items:center;gap:9px;padding:8px 10px;border:1px solid #d1d5db;border-radius:9px;background:#fff}.invite-user form{margin:0}.invite-user .button{padding:7px 9px}.invite-empty{margin:0;color:#6b7280;font-size:13px}html[data-theme="dark"] .invite-panel,html[data-theme="dark"] .invite-user{background:#1e293b;border-color:#334155}
-    html[data-theme="dark"] .shared-board.sudoku{border-color:#94a3b8;background:#64748b}
-    html[data-theme="dark"] .sudoku .shared-cell{background:#0f172a;color:#e2e8f0;box-shadow:inset 0 0 0 1px #334155}
-    html[data-theme="dark"] .sudoku .shared-cell:nth-child(3n):not(:nth-child(9n)){border-right-color:#94a3b8}
-    html[data-theme="dark"] .sudoku .shared-cell:nth-child(n+19):nth-child(-n+27),html[data-theme="dark"] .sudoku .shared-cell:nth-child(n+46):nth-child(-n+54){border-bottom-color:#94a3b8}
-    html[data-theme="dark"] .sudoku .shared-cell.given{background:#334155;color:#fff;box-shadow:inset 0 0 0 1px #64748b}
-    html[data-theme="dark"] .sudoku .shared-cell.host-move{background:#1e3a8a;color:#bfdbfe}
-    html[data-theme="dark"] .sudoku .shared-cell.guest-move{background:#581c87;color:#f5d0fe}
-    html[data-theme="dark"] .sudoku .shared-cell.selected{outline-color:#facc15;box-shadow:inset 0 0 0 1px #fde68a}
-    .shared-board.snake{display:block;width:min(100%,600px);padding:8px;border-radius:12px;background:#07140d}.shared-snake-canvas{display:block;width:100%;height:auto;border-radius:7px}.snake-room-controls{display:grid;grid-template-columns:repeat(3,58px);grid-template-rows:repeat(2,50px);justify-content:center}.snake-room-controls button{padding:0;font-size:22px}.snake-room-controls [data-direction="up"]{grid-column:2}.snake-room-controls [data-direction="left"]{grid-column:1;grid-row:2}.snake-room-controls [data-direction="down"]{grid-column:2;grid-row:2}.snake-room-controls [data-direction="right"]{grid-column:3;grid-row:2}
+    .invite-panel {
+        padding: 14px;
+        margin: 13px 0 16px;
+        border: 1px solid #dbeafe;
+        border-radius: 11px;
+        background: #f8fafc
+    }
+
+    .invite-panel strong {
+        display: block;
+        margin-bottom: 9px
+    }
+
+    .invite-users {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto
+    }
+
+    .invite-user {
+        display: flex;
+        flex: 0 0 auto;
+        align-items: center;
+        gap: 9px;
+        padding: 8px 10px;
+        border: 1px solid #d1d5db;
+        border-radius: 9px;
+        background: #fff
+    }
+
+    .invite-user form {
+        margin: 0
+    }
+
+    .invite-user .button {
+        padding: 7px 9px
+    }
+
+    .invite-empty {
+        margin: 0;
+        color: #6b7280;
+        font-size: 13px
+    }
+
+    html[data-theme="dark"] .invite-panel,
+    html[data-theme="dark"] .invite-user {
+        background: #1e293b;
+        border-color: #334155
+    }
+
+    html[data-theme="dark"] .shared-board.sudoku {
+        border-color: #94a3b8;
+        background: #64748b
+    }
+
+    html[data-theme="dark"] .sudoku .shared-cell {
+        background: #0f172a;
+        color: #e2e8f0;
+        box-shadow: inset 0 0 0 1px #334155
+    }
+
+    html[data-theme="dark"] .sudoku .shared-cell:nth-child(3n):not(:nth-child(9n)) {
+        border-right-color: #94a3b8
+    }
+
+    html[data-theme="dark"] .sudoku .shared-cell:nth-child(n+19):nth-child(-n+27),
+    html[data-theme="dark"] .sudoku .shared-cell:nth-child(n+46):nth-child(-n+54) {
+        border-bottom-color: #94a3b8
+    }
+
+    html[data-theme="dark"] .sudoku .shared-cell.given {
+        background: #334155;
+        color: #fff;
+        box-shadow: inset 0 0 0 1px #64748b
+    }
+
+    html[data-theme="dark"] .sudoku .shared-cell.host-move {
+        background: #1e3a8a;
+        color: #bfdbfe
+    }
+
+    html[data-theme="dark"] .sudoku .shared-cell.guest-move {
+        background: #581c87;
+        color: #f5d0fe
+    }
+
+    html[data-theme="dark"] .sudoku .shared-cell.selected {
+        outline-color: #facc15;
+        box-shadow: inset 0 0 0 1px #fde68a
+    }
+
+    html[data-theme="dark"] .shared-board.mines {
+        background: #020617;
+        box-shadow: inset 0 0 0 1px #475569
+    }
+
+    html[data-theme="dark"] .mines .shared-cell {
+        background: #475569;
+        color: #f8fafc;
+        box-shadow: inset 0 0 0 1px #64748b
+    }
+
+    html[data-theme="dark"] .mines .shared-cell:hover:not(.revealed) {
+        background: #64748b
+    }
+
+    html[data-theme="dark"] .mines .shared-cell.revealed {
+        background: #0f172a;
+        box-shadow: inset 0 0 0 1px #334155
+    }
+
+    html[data-theme="dark"] .mines .shared-cell.flagged {
+        background: #854d0e;
+        color: #fff;
+        box-shadow: inset 0 0 0 1px #facc15
+    }
+
+    html[data-theme="dark"] .mines .shared-cell.mine {
+        background: #7f1d1d;
+        box-shadow: inset 0 0 0 1px #f87171
+    }
+
+    html[data-theme="dark"] .mines .shared-cell[data-number="1"] {
+        color: #60a5fa
+    }
+
+    html[data-theme="dark"] .mines .shared-cell[data-number="2"] {
+        color: #4ade80
+    }
+
+    html[data-theme="dark"] .mines .shared-cell[data-number="3"] {
+        color: #fb7185
+    }
+
+    html[data-theme="dark"] .mines .shared-cell[data-number="4"] {
+        color: #c084fc
+    }
+
+    html[data-theme="dark"] .mines .shared-cell[data-number="5"] {
+        color: #f472b6
+    }
 </style>
-<div class="room-page" id="shared-game" data-state-url="<?= site_url('games/room/'.$room['code'].'/state') ?>" data-version-url="<?= site_url('games/room/'.$room['code'].'/version') ?>" data-move-url="<?= site_url('games/room/'.$room['code'].'/move') ?>" data-leave-url="<?= site_url('games/room/'.$room['code'].'/leave') ?>" data-csrf-name="<?= csrf_token() ?>" data-csrf-hash="<?= csrf_hash() ?>">
-    <header class="room-head"><div><h1><?= match ($room['game']) { 'sudoku'=>'🔢 Sudoku', 'snake'=>'🐍 Yılan Yarışı', default=>'💣 Mayın Tarlası' } ?> · Birlikte</h1><p><?= $room['game']==='snake'?'Tek yeme yarışın; çarpmadan 15 parçaya ulaşmaya çalışın.':'Hamleleriniz iki ekranda otomatik olarak eşitlenir.' ?></p></div><form id="leave-room-form" method="post" action="<?= site_url('games/room/'.$room['code'].'/leave') ?>"><?= csrf_field() ?><button class="button secondary" type="submit">Odalara dön</button></form></header>
-    <div class="room-code">ODA: <span><?= esc($room['code']) ?></span></div>
-    <?php if ($room['status'] === 'waiting' && (int) $room['host']['id'] === (int) session()->get('user_id')): ?>
-        <section class="invite-panel"><strong>Aktif bir kullanıcıyı davet et</strong>
-            <?php if (empty($activeUsers)): ?><p class="invite-empty">Şu anda davet edilebilecek başka bir aktif kullanıcı yok.</p><?php else: ?><div class="invite-users">
-                <?php foreach ($activeUsers as $activeUser): ?><div class="invite-user"><span><?= esc($activeUser['username']) ?></span><form data-room-preserving-action method="post" action="<?= site_url('games/room/' . $room['code'] . '/invite/' . $activeUser['id']) ?>"><?= csrf_field() ?><button class="button" type="submit">Davet et</button></form></div><?php endforeach; ?>
-            </div><?php endif; ?>
-        </section>
+<div class="room-page" id="shared-game" data-state-url="<?= site_url(
+    "games/room/" . $room["code"] . "/state",
+) ?>" data-version-url="<?= site_url(
+    "games/room/" . $room["code"] . "/version",
+) ?>" data-move-url="<?= site_url(
+    "games/room/" . $room["code"] . "/move",
+) ?>" data-leave-url="<?= site_url(
+    "games/room/" . $room["code"] . "/leave",
+) ?>" data-csrf-name="<?= csrf_token() ?>" data-csrf-hash="<?= csrf_hash() ?>">
+    <header class="room-head">
+        <div>
+            <h1><?= $room["game"] === "sudoku"
+        ? "🔢 Sudoku"
+        : "💣 Mayın Tarlası" ?> · Birlikte</h1>
+            <p>Hamleleriniz iki ekranda otomatik olarak eşitlenir.</p>
+        </div>
+        <form id="leave-room-form" method="post" action="<?= site_url(
+     "games/room/" . $room["code"] . "/leave",
+ ) ?>"><?= csrf_field() ?><button class="button secondary" type="submit">Odalara dön</button>
+        </form>
+    </header>
+    <div class="room-code">ODA: <span><?= esc($room["code"]) ?></span></div>
+    <?php if (
+        $room["status"] === "waiting" &&
+        (int) $room["host"]["id"] === (int) session()->get("user_id")
+    ): ?>
+    <section class="invite-panel" data-room-invites data-users-url="<?= site_url(
+            "system/active-users",
+        ) ?>" data-invite-url="<?= site_url(
+    "games/room/" . $room["code"] . "/invite/__USER__",
+) ?>" data-current-user="<?= (int) session()->get(
+    "user_id",
+) ?>" data-csrf-name="<?= csrf_token() ?>" data-csrf-hash="<?= csrf_hash() ?>"><strong>Aktif bir
+            kullanıcıyı davet et</strong>
+        <?php if (
+                empty($activeUsers)
+            ): ?><p class="invite-empty">Şu anda davet edilebilecek başka bir aktif kullanıcı yok.
+        </p><?php else: ?><div class="invite-users">
+            <?php foreach (
+                    $activeUsers
+                    as $activeUser
+                ): ?><div class="invite-user"><span><?= esc(
+    $activeUser["username"],
+) ?></span>
+                <form data-room-preserving-action method="post" action="<?= site_url(
+    "games/room/" . $room["code"] . "/invite/" . $activeUser["id"],
+) ?>"><?= csrf_field() ?><button class="button" type="submit">Davet et</button></form>
+            </div><?php endforeach; ?>
+        </div><?php endif; ?>
+    </section>
     <?php endif; ?>
-    <div class="room-meta"><div class="room-player"><span>Oyuncu 1</span><strong id="host-name"><?= esc($room['host']['username']) ?></strong></div><div class="room-vs">BERABER</div><div class="room-player guest"><span>Oyuncu 2</span><strong id="guest-name"><?= esc($room['guest']['username'] ?? 'Bekleniyor…') ?></strong></div></div>
+    <div class="room-meta">
+        <div class="room-player"><span>Oyuncu 1</span><strong id="host-name"><?= esc(
+        $room["host"]["username"],
+    ) ?></strong></div>
+        <div class="room-vs">BERABER</div>
+        <div class="room-player guest"><span>Oyuncu 2</span><strong id="guest-name"><?= esc(
+    $room["guest"]["username"] ?? "Bekleniyor…",
+) ?></strong></div>
+    </div>
     <div class="room-status" id="room-status" aria-live="polite"></div>
-    <div class="shared-board <?= esc(match ($room['game']) {'sudoku'=>'sudoku','snake'=>'snake',default=>'mines'}) ?>" id="shared-board" role="grid"></div>
-    <?php if ($room['game']==='sudoku'): ?><div class="room-controls number-pad" id="room-controls"><?php for($i=1;$i<=9;$i++): ?><button type="button" data-number="<?= $i ?>"><?= $i ?></button><?php endfor ?></div><?php elseif($room['game']==='snake'): ?><div class="room-controls snake-room-controls" id="room-controls"><button class="room-mode" type="button" data-direction="up">↑</button><button class="room-mode" type="button" data-direction="left">←</button><button class="room-mode" type="button" data-direction="down">↓</button><button class="room-mode" type="button" data-direction="right">→</button></div><?php else: ?><div class="room-controls" id="room-controls"><button class="room-mode active" type="button" data-mode="reveal">🔎 Hücre aç</button><button class="room-mode" type="button" data-mode="flag">🚩 Bayrak koy</button></div><?php endif ?>
-    <div class="room-legend"><span><i></i><?= esc($room['host']['username']) ?></span><span><i class="guest-dot"></i><span id="guest-legend"><?= esc($room['guest']['username'] ?? 'Oyuncu 2') ?></span></span></div>
+    <div class="shared-board <?= $room["game"] === "sudoku"
+        ? "sudoku"
+        : "mines" ?>" id="shared-board" role="grid"></div>
+    <?php if (
+        $room["game"] === "sudoku"
+    ): ?><div class="room-controls number-pad" id="room-controls"><?php for (
+    $i = 1;
+    $i <= 9;
+    $i++
+): ?><button type="button" data-number="<?= $i ?>"><?= $i ?></button><?php endfor; ?></div>
+    <?php else: ?><div class="room-controls" id="room-controls"><button class="room-mode active"
+            type="button" data-mode="reveal">🔎 Hücre aç</button><button class="room-mode"
+            type="button" data-mode="flag">🚩 Bayrak koy</button></div><?php endif; ?>
+    <div class="room-legend"><span><i></i><?= esc(
+        $room["host"]["username"],
+    ) ?></span><span><i class="guest-dot"></i><span id="guest-legend"><?= esc(
+    $room["guest"]["username"] ?? "Oyuncu 2",
+) ?></span></span></div>
 </div>
-<script id="initial-room-data" type="application/json"><?= json_encode($room, JSON_HEX_TAG|JSON_HEX_AMP|JSON_HEX_APOS|JSON_HEX_QUOT) ?></script>
-<script src="<?= base_url('js/shared-game.js') ?>"></script>
+<script id="initial-room-data" type="application/json"><?= json_encode(
+        $room,
+        JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT,
+    ) ?></script>
+<script src="<?= base_url("js/shared-game.js") ?>?v=<?= filemtime(
+    FCPATH . "js/shared-game.js",
+) ?>"></script>
+<script src="<?= base_url("js/room-invites.js") ?>?v=<?= filemtime(
+    FCPATH . "js/room-invites.js",
+) ?>"></script>
 <?= $this->endSection() ?>

@@ -114,7 +114,7 @@ class GameRooms extends BaseController
             'actor_user_id' => $currentUserId,
             'game_room_id' => (int) $room['id'],
             'type' => 'game_invite',
-            'message' => session()->get('username') . ' sizi ' . match ($room['game']) { 'sudoku' => 'Sudoku', 'snake' => 'Yılan', default => 'Mayın Tarlası' } . ' oyununa davet etti.',
+            'message' => session()->get('username') . ' sizi ' . ($room['game'] === 'sudoku' ? 'Sudoku' : 'Mayın Tarlası') . ' oyununa davet etti.',
             'target_path' => 'games/room/' . $room['code'],
             'notification_key' => $key,
             'read_at' => null,

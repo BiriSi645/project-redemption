@@ -14,7 +14,7 @@
         try {
             const response = await fetch(script.dataset.versionUrl, {
                 cache: 'no-store',
-                headers: {'X-Requested-With': 'XMLHttpRequest'},
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
             });
             if (!response.ok) return;
             const data = await response.json();

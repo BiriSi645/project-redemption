@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Libraries\GameRoomService;
 use App\Libraries\TaskReminderService;
+use App\Libraries\NotificationActionPolicy;
 use App\Models\GameRoomModel;
 use App\Models\NotificationModel;
 use CodeIgniter\Exceptions\PageNotFoundException;
@@ -47,7 +48,15 @@ class Notifications extends BaseController
 
     public function open(int $id)
     {
-        return $this->openNotification($id);
+        $notification = (new NotificationModel())
+            ->where('user_id', (int) session()->get('user_id'))
+            ->find($id);
+        if (! $notification) {
+            throw PageNotFoundException::forPageNotFound('Bildirim bulunamadı.');
+        }
+
+        // GET yalnızca güvenli yönlendirme yapar; okuma ve davet kabulü POST'tadır.
+        return redirect()->to(site_url(NotificationActionPolicy::safeGetTarget($notification)));
     }
 
     public function read(int $id)

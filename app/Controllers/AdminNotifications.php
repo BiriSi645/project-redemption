@@ -55,25 +55,31 @@ class AdminNotifications extends BaseController
                 throw new RuntimeException('Duyuru kaydı oluşturulamadı.');
             }
 
-            $users = (new UserModel())->select('id')->findAll();
-            $notifications = [];
-            foreach ($users as $user) {
-                $userId = (int) $user['id'];
-                $notifications[] = [
-                    'user_id' => $userId,
-                    'actor_user_id' => $adminId,
-                    'type' => $type === 'update' ? 'system_update' : 'admin_announcement',
-                    'message' => ($type === 'update' ? 'Güncelleme notu: ' : 'Yeni duyuru: ') . $title,
-                    'target_path' => 'announcements/' . $announcementId,
-                    'notification_key' => 'announcement:' . $announcementId . ':' . $userId,
-                    'created_at' => $createdAt,
-                ];
-            }
+            $recipientCount = 0;
+            $lastUserId = 0;
+            do {
+                $users = (new UserModel())->select('id')->where('id >', $lastUserId)->orderBy('id', 'ASC')->findAll(500);
+                $notifications = [];
+                foreach ($users as $user) {
+                    $userId = (int) $user['id'];
+                    $lastUserId = $userId;
+                    $notifications[] = [
+                        'user_id' => $userId,
+                        'actor_user_id' => $adminId,
+                        'type' => $type === 'update' ? 'system_update' : 'admin_announcement',
+                        'message' => ($type === 'update' ? 'Güncelleme notu: ' : 'Yeni duyuru: ') . $title,
+                        'target_path' => 'announcements/' . $announcementId,
+                        'notification_key' => 'announcement:' . $announcementId . ':' . $userId,
+                        'created_at' => $createdAt,
+                    ];
+                }
+                if ($notifications !== []) {
+                    (new NotificationModel())->insertBatch($notifications);
+                    $recipientCount += count($notifications);
+                }
+            } while (count($users) === 500);
 
-            foreach (array_chunk($notifications, 500) as $batch) {
-                (new NotificationModel())->insertBatch($batch);
-            }
-            $announcementModel->update($announcementId, ['recipient_count' => count($notifications)]);
+            $announcementModel->update($announcementId, ['recipient_count' => $recipientCount]);
 
             if (! $db->transStatus()) {
                 throw new RuntimeException('Bildirimler kaydedilemedi.');
@@ -81,7 +87,7 @@ class AdminNotifications extends BaseController
             $db->transCommit();
 
             return redirect()->to(site_url('admin/users') . '?section=notifications')
-                ->with('success', count($notifications) . ' kayıtlı kullanıcıya bildirim gönderildi.');
+                ->with('success', $recipientCount . ' kayıtlı kullanıcıya bildirim gönderildi.');
         } catch (Throwable $e) {
             $db->transRollback();
             log_message('error', 'Toplu bildirim yayınlanamadı: {message}', ['message' => $e->getMessage()]);

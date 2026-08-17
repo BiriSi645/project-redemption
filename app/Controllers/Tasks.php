@@ -6,6 +6,8 @@ use App\Models\TaskModel;
 use App\Models\NotificationModel;
 use App\Libraries\ExperienceService;
 use CodeIgniter\Exceptions\PageNotFoundException;
+use DateTimeImmutable;
+use DateTimeZone;
 
 class Tasks extends BaseController
 {
@@ -73,7 +75,7 @@ class Tasks extends BaseController
         if (! $taskModel->update($id, $this->taskData())) {
             return redirect()->back()->withInput()->with('errors', $taskModel->errors());
         }
-        (new NotificationModel())->where('task_id', $id)->where('type', 'task_due')->delete();
+        (new NotificationModel())->where('task_id', $id)->whereIn('type', ['task_due', 'task_overdue'])->delete();
 
         return redirect()->to(site_url('tasks'))->with('success', 'Görev güncellendi.');
     }
@@ -83,12 +85,19 @@ class Tasks extends BaseController
         $task = $this->findOwnedTask($id);
         $completed = $task['status'] !== 'completed';
 
+        if ($completed && $this->isExpired($task)) {
+            return redirect()->back()->with(
+                'error',
+                'Süresi dolmuş görev tamamlanamaz. Önce görevi düzenleyip bitiş süresini uzatın.'
+            );
+        }
+
         (new TaskModel())->update($id, [
             'status'       => $completed ? 'completed' : 'pending',
             'completed_at' => $completed ? date('Y-m-d H:i:s') : null,
         ]);
         if ($completed) {
-            (new NotificationModel())->where('task_id', $id)->where('type', 'task_due')->delete();
+            (new NotificationModel())->where('task_id', $id)->whereIn('type', ['task_due', 'task_overdue'])->delete();
             (new ExperienceService())->award((int) session()->get('user_id'), 'task_completed', 'task:' . $id);
         }
 
@@ -131,5 +140,21 @@ class Tasks extends BaseController
         }
 
         return $task;
+    }
+
+    private function isExpired(array $task): bool
+    {
+        if (empty($task['due_date'])) return false;
+
+        $dueTime = $task['due_time'] ?: '23:59:59';
+        if (strlen($dueTime) === 5) $dueTime .= ':00';
+        $deadline = DateTimeImmutable::createFromFormat(
+            '!Y-m-d H:i:s',
+            $task['due_date'] . ' ' . $dueTime,
+            new DateTimeZone('Europe/Istanbul')
+        );
+
+        return $deadline !== false
+            && $deadline <= new DateTimeImmutable('now', new DateTimeZone('Europe/Istanbul'));
     }
 }

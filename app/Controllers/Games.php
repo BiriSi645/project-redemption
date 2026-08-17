@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Models\GameScoreModel;
 use App\Libraries\SudokuPuzzles;
+use App\Libraries\MinesweeperDifficulties;
 
 class Games extends BaseController
 {
@@ -31,7 +32,8 @@ class Games extends BaseController
         $scoreModel = new GameScoreModel();
         $leaderboards = [];
         $personalBests = [];
-        foreach (['beginner', 'medium', 'expert'] as $difficulty) {
+        $difficulties = MinesweeperDifficulties::all();
+        foreach (array_keys($difficulties) as $difficulty) {
             $leaderboards[$difficulty] = $scoreModel->leaderboard('minesweeper', $difficulty);
             $personalBests[$difficulty] = $scoreModel->personalBest($userId, 'minesweeper', $difficulty);
         }
@@ -41,6 +43,7 @@ class Games extends BaseController
             'userId' => $userId,
             'leaderboards' => $leaderboards,
             'personalBests' => $personalBests,
+            'difficulties' => $difficulties,
         ]);
     }
 
@@ -70,7 +73,7 @@ class Games extends BaseController
         $score = filter_var($this->request->getPost('score'), FILTER_VALIDATE_INT);
 
         $validSnake = $game === 'snake' && $difficulty === 'default' && $score !== false && $score >= 10 && $score <= 1000000 && $score % 10 === 0;
-        $validMines = $game === 'minesweeper' && in_array($difficulty, ['beginner', 'medium', 'expert'], true) && $score !== false && $score >= 1 && $score <= 86400;
+        $validMines = $game === 'minesweeper' && MinesweeperDifficulties::has($difficulty) && $score !== false && $score >= 1 && $score <= 86400;
         $validSudoku = $game === 'sudoku' && in_array($difficulty, ['beginner', 'medium', 'expert'], true) && $score !== false && $score >= 1 && $score <= 86400;
         if (! $validSnake && ! $validMines && ! $validSudoku) {
             return $this->response->setStatusCode(422)->setJSON(['success' => false, 'message' => 'Geçersiz skor.']);

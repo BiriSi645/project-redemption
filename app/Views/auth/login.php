@@ -23,11 +23,9 @@
             }
 
             if (
-                t === 'dark'
-                ||
+                t === 'dark' ||
                 (
-                    (t || 'system') === 'system'
-                    &&
+                    (t || 'system') === 'system' &&
                     matchMedia(
                         '(prefers-color-scheme: dark)'
                     ).matches
@@ -35,15 +33,52 @@
             ) {
                 document.documentElement.style.colorScheme = 'dark';
             }
+            (() => {
+                const resendButton =
+                    document.querySelector(
+                        '[data-resend-countdown]'
+                    );
+
+                if (!resendButton) return;
+
+                let seconds = Number(
+                    resendButton.dataset
+                    .resendCountdown || 0
+                );
+
+                if (seconds <= 0) return;
+
+                const tick = () => {
+                    if (seconds <= 0) {
+                        resendButton.disabled = false;
+
+                        resendButton.textContent =
+                            'Yeni Kod Gönder';
+
+                        return;
+                    }
+
+                    resendButton.disabled = true;
+
+                    resendButton.textContent =
+                        `Yeni Kod Gönder (${seconds} sn)`;
+
+                    seconds -= 1;
+
+                    window.setTimeout(
+                        tick,
+                        1000
+                    );
+                };
+
+                tick();
+            })();
         })();
     </script>
 
     <meta charset="UTF-8">
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>
         Giriş Yap | Project Redemption
@@ -51,7 +86,6 @@
 
 
     <style>
-
         * {
             box-sizing: border-box;
         }
@@ -168,6 +202,21 @@
             outline-offset: 1px;
         }
 
+        .verification-button:disabled {
+            opacity: .55;
+            cursor: not-allowed;
+        }
+
+        .verification-code {
+            text-align: center;
+            letter-spacing: .45em;
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .verification-meta {
+            font-size: 13px;
+        }
 
         button {
             width: 100%;
@@ -308,7 +357,6 @@
             background: #422006;
             color: #fde68a;
         }
-
     </style>
 
 </head>
@@ -317,338 +365,286 @@
 <body>
 
 
-<main class="auth-card">
+    <main class="auth-card">
 
 
-    <h1>
-        Giriş Yap
-    </h1>
+        <h1>
+            Giriş Yap
+        </h1>
 
 
-    <p class="subtitle">
-        Notlarınıza erişmek için hesabınıza giriş yapın.
-    </p>
+        <p class="subtitle">
+            Notlarınıza erişmek için hesabınıza giriş yapın.
+        </p>
 
 
-    <!-- errors FLASHDATA -->
-    <?php if ($errors = session()->getFlashdata('errors')): ?>
+        <!-- errors FLASHDATA -->
+        <?php if ($errors = session()->getFlashdata("errors")): ?>
 
         <div class="alert error">
 
             <?php foreach ((array) $errors as $error): ?>
 
-                <div>
-                    <?= esc($error) ?>
-                </div>
+            <div>
+                <?= esc($error) ?>
+            </div>
 
             <?php endforeach; ?>
 
         </div>
 
-    <?php endif; ?>
+        <?php endif; ?>
 
 
-    <!-- error FLASHDATA -->
-    <?php if ($error = session()->getFlashdata('error')): ?>
+        <!-- error FLASHDATA -->
+        <?php if ($error = session()->getFlashdata("error")): ?>
 
         <div class="alert error">
             <?= esc($error) ?>
         </div>
 
-    <?php endif; ?>
+        <?php endif; ?>
 
 
-    <!-- SUCCESS -->
-    <?php if ($success = session()->getFlashdata('success')): ?>
+        <!-- SUCCESS -->
+        <?php if ($success = session()->getFlashdata("success")): ?>
 
         <div class="alert success">
             <?= esc($success) ?>
         </div>
 
-    <?php endif; ?>
+        <?php endif; ?>
 
 
-    <!-- E-POSTA DOĞRULAMA UYARISI -->
-    <?php if (
-        $verification = session()->getFlashdata(
-            'verification_pending'
-        )
-    ): ?>
-
+        <!-- E-POSTA DOĞRULAMA UYARISI -->
+        <?php if ($verification = session()->getFlashdata("verification_pending")): ?>
 
         <div class="alert warning">
-
 
             <strong>
                 E-posta doğrulaması gerekli.
             </strong>
 
+            <p>
+                <strong>
+                    <?= esc($verification["email"]) ?>
+                </strong>
+                adresine gönderilen 6 haneli
+                doğrulama kodunu girin.
+            </p>
 
-            <?php if (
-                empty($verification['can_resend'])
-            ): ?>
+            <?php if (!empty($verification["can_verify"])): ?>
 
+            <form method="post" action="<?= site_url("verify-email") ?>" autocomplete="off">
 
-                <p>
-                    Hesabınıza giriş yapmadan önce
-                    e-posta adresinizi doğrulamanız gerekiyor.
-                </p>
+                <?= csrf_field() ?>
 
+                <input type="hidden" name="email" value="<?= esc($verification["email"]) ?>">
 
-                <p>
-                    Doğrulama bağlantısı e-posta adresinize
-                    gönderildi.
-                </p>
+                <label for="verification-code">
+                    Doğrulama kodu
+                </label>
 
+                <input class="verification-code" id="verification-code" name="code" type="text"
+                    inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
+                    autocomplete="one-time-code" placeholder="000000" required>
 
-                <p>
-                    Lütfen gelen kutunuzu ve
-                    <strong>
-                        spam / gereksiz
-                    </strong>
-                    klasörünüzü kontrol edin.
-                </p>
+                <button class="verification-button" type="submit">
+                    Kodu Doğrula
+                </button>
 
+            </form>
+
+            <p class="verification-meta">
+                Kod 10 dakika geçerlidir.
+                Kalan deneme hakkı:
+                <?= (int) ($verification["attempts_remaining"] ?? 0) ?>.
+            </p>
 
             <?php else: ?>
 
-
-                <p>
-                    E-posta doğrulama bağlantınızın
-                    süresi dolmuş.
-                </p>
-
-
-                <p>
-                    Yeni bir doğrulama bağlantısı
-                    gönderebilirsiniz.
-                </p>
-
-
-                <form
-                    method="post"
-                    action="<?= site_url(
-                        'resend-verification'
-                    ) ?>"
-                >
-
-                    <?= csrf_field() ?>
-
-
-                    <input
-                        type="hidden"
-                        name="email"
-                        value="<?= esc(
-                            $verification['email']
-                        ) ?>"
-                    >
-
-
-                    <button
-                        class="verification-button"
-                        type="submit"
-                    >
-                        Doğrulama Mailini Tekrar Gönder
-                    </button>
-
-
-                </form>
-
+            <p>
+                Mevcut doğrulama kodunuz
+                kullanılamıyor veya süresi
+                dolmuş. Yeni bir kod isteyin.
+            </p>
 
             <?php endif; ?>
 
 
+            <form method="post" action="<?= site_url("resend-verification") ?>">
+
+                <?= csrf_field() ?>
+
+                <input type="hidden" name="email" value="<?= esc($verification["email"]) ?>">
+
+                <?php $resendWait = (int) ($verification["resend_after_seconds"] ?? 0); ?>
+
+                <button class="verification-button" type="submit"
+                    data-resend-countdown="<?= $resendWait ?>"
+                    <?= empty($verification["can_resend"]) ? "disabled" : "" ?>>
+
+                    <?= empty($verification["can_resend"])
+                        ? "Yeni Kod Gönder (" . $resendWait . " sn)"
+                        : "Yeni Kod Gönder" ?>
+
+                </button>
+
+            </form>
+
+            <p class="verification-meta">
+                E-posta gelmediyse spam /
+                gereksiz klasörünü de kontrol edin.
+            </p>
+
         </div>
 
-
-    <?php endif; ?>
-
-
-    <!-- LOGIN FORM -->
-    <form
-        method="post"
-        action="<?= site_url('login') ?>"
-    >
+        <?php endif; ?>
 
 
-        <?= csrf_field() ?>
+        <!-- LOGIN FORM -->
+        <form method="post" action="<?= site_url("login") ?>">
 
 
-        <label for="email">
-            E-posta
-        </label>
+            <?= csrf_field() ?>
 
 
-        <input
-            id="email"
-            type="email"
-            name="email"
-
-            value="<?= esc(old('email')) ?>"
-
-            autocomplete="username"
-
-            autocapitalize="none"
-
-            spellcheck="false"
-
-            required
-        >
+            <label for="email">
+                E-posta
+            </label>
 
 
-        <label for="password">
-            Şifre
-        </label>
+            <input id="email" type="email" name="email" value="<?= esc(old("email")) ?>"
+                autocomplete="username" autocapitalize="none" spellcheck="false" required>
 
 
-        <div class="password-wrap">
+            <label for="password">
+                Şifre
+            </label>
 
 
-            <input
-                id="password"
-                type="password"
-                name="password"
-
-                autocomplete="current-password"
-
-                required
-            >
+            <div class="password-wrap">
 
 
-            <button
-                class="password-toggle"
+                <input id="password" type="password" name="password" autocomplete="current-password"
+                    required>
 
-                type="button"
 
-                aria-controls="password"
+                <button class="password-toggle" type="button" aria-controls="password"
+                    aria-pressed="false">
+                    Göster
+                </button>
 
-                aria-pressed="false"
-            >
-                Göster
+
+            </div>
+
+
+            <!-- ŞİFREMİ UNUTTUM -->
+            <div class="forgot-password">
+
+                <a href="<?= site_url("forgot-password") ?>">
+                    Şifremi unuttum?
+                </a>
+
+            </div>
+
+
+            <button type="submit">
+                Giriş Yap
             </button>
 
 
-        </div>
+        </form>
 
 
-        <!-- ŞİFREMİ UNUTTUM -->
-        <div class="forgot-password">
+        <p class="footer">
 
-            <a href="<?= site_url(
-                'forgot-password'
-            ) ?>">
-                Şifremi unuttum?
+            Hesabınız yok mu?
+
+            <a href="<?= site_url("register") ?>">
+                Kayıt olun
             </a>
 
-        </div>
+        </p>
 
 
-        <button type="submit">
-            Giriş Yap
-        </button>
+    </main>
 
 
-    </form>
+    <footer class="site-footer">
+
+        Made with
+
+        <span class="heart" aria-label="love">
+            ♥
+        </span>
+
+        by Halide.
+
+    </footer>
 
 
-    <p class="footer">
+    <script>
+        (() => {
 
-        Hesabınız yok mu?
+            const password =
+                document.getElementById('password');
 
-        <a href="<?= site_url('register') ?>">
-            Kayıt olun
-        </a>
-
-    </p>
-
-
-</main>
+            const toggle =
+                document.querySelector(
+                    '.password-toggle'
+                );
 
 
-<footer class="site-footer">
-
-    Made with
-
-    <span
-        class="heart"
-        aria-label="love"
-    >
-        ♥
-    </span>
-
-    by Halide.
-
-</footer>
+            if (!password || !toggle) {
+                return;
+            }
 
 
-<script>
+            toggle.addEventListener(
+                'click',
+                () => {
 
-    (() => {
+                    const showPassword =
+                        password.type === 'password';
 
-        const password =
-            document.getElementById('password');
 
-        const toggle =
-            document.querySelector(
-                '.password-toggle'
+                    password.type =
+                        showPassword ?
+                        'text' :
+                        'password';
+
+
+                    toggle.textContent =
+                        showPassword ?
+                        'Gizle' :
+                        'Göster';
+
+
+                    toggle.setAttribute(
+                        'aria-pressed',
+                        String(showPassword)
+                    );
+
+
+                    password.focus();
+
+
+                    password.setSelectionRange(
+                        password.value.length,
+                        password.value.length
+                    );
+
+                }
             );
 
-
-        if (!password || !toggle) {
-            return;
-        }
+        })();
+    </script>
 
 
-        toggle.addEventListener(
-            'click',
-            () => {
-
-                const showPassword =
-                    password.type === 'password';
-
-
-                password.type =
-                    showPassword
-                        ? 'text'
-                        : 'password';
-
-
-                toggle.textContent =
-                    showPassword
-                        ? 'Gizle'
-                        : 'Göster';
-
-
-                toggle.setAttribute(
-                    'aria-pressed',
-                    String(showPassword)
-                );
-
-
-                password.focus();
-
-
-                password.setSelectionRange(
-                    password.value.length,
-                    password.value.length
-                );
-
-            }
-        );
-
-    })();
-
-</script>
-
-
-<?= view(
-    'partials/update_notifier',
-    [
-        'codeVersion' =>
-            (new \App\Libraries\CodeVersion())
-                ->current()
-    ]
-) ?>
+    <?= view("partials/update_notifier", [
+    "codeVersion" => (new \App\Libraries\CodeVersion())->current(),
+]) ?>
 
 
 </body>

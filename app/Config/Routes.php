@@ -47,7 +47,13 @@ $routes->group('', ['filter' => 'auth'], static function ($routes) {
     $routes->post('projects/(:num)/items/(:num)/status', 'Projects::itemStatus/$1/$2');
     $routes->post('projects/(:num)/items/(:num)/assign', 'Projects::assignItem/$1/$2');
     $routes->post('projects/(:num)/items/(:num)/schedule', 'Projects::scheduleItem/$1/$2');
+    $routes->post('projects/(:num)/sections', 'Projects::storeSection/$1');
+    $routes->post('projects/(:num)/sections/(:num)', 'Projects::updateSection/$1/$2');
+    $routes->post('projects/(:num)/sections/(:num)/delete', 'Projects::deleteSection/$1/$2');
+    $routes->post('projects/(:num)/items/(:num)/section', 'Projects::setItemSection/$1/$2');
     $routes->get('calendar', 'Calendar::index');
+    $routes->post('calendar/reminders', 'Calendar::storeReminder');
+    $routes->post('calendar/reminders/(:num)/delete', 'Calendar::deleteReminder/$1');
     $routes->get('profile', 'Profile::index');
     $routes->post('profile', 'Profile::update');
     $routes->post('profile/password', 'Profile::password');
@@ -99,20 +105,14 @@ $routes->group('', ['filter' => 'auth'], static function ($routes) {
     $routes->post('notes/(:num)/delete', 'Notes::delete/$1');
     $routes->post('notes/(:num)/comments', 'Notes::storeComment/$1');
     $routes->post('notes/(:num)/comments/(:num)/delete', 'Notes::deleteComment/$1/$2');
-    $routes->post('resend-verification','Auth::resendVerification');
-    $routes->get('verify-email/(:segment)','Auth::verifyEmail/$1');
 });$routes->get('forgot-password', 'Auth::forgotPassword');
 $routes->post('forgot-password', 'Auth::sendPasswordReset');
+$routes->get('reset-password/(:segment)', 'Auth::resetPassword/$1');
+$routes->post('reset-password/(:segment)', 'Auth::updatePassword/$1');
 
-$routes->get(
-    'reset-password/(:segment)',
-    'Auth::resetPassword/$1'
-);
-
-$routes->post(
-    'reset-password/(:segment)',
-    'Auth::updatePassword/$1'
-);
+$routes->get('verify-email', 'Auth::verificationPage');
+$routes->post('verify-email', 'Auth::verifyEmail');
+$routes->post('resend-verification', 'Auth::resendVerification');
 
 $routes->group('admin', ['filter' => ['auth','admin']], static function ($routes) {
     $routes->get('', 'Admin::index');

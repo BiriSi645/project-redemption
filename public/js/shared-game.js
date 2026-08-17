@@ -1,26 +1,285 @@
 (() => {
     'use strict';
-    const root=document.getElementById('shared-game'),board=document.getElementById('shared-board'),statusEl=document.getElementById('room-status');if(!root||!board)return;
-    let room=JSON.parse(document.getElementById('initial-room-data').textContent),selected=null,mode='reveal',sending=false,pollTimer=null,failures=0,leaving=false,preservingRoom=false;
-    function playerClass(owner){if(!owner)return'';return Number(owner)===Number(room.host.id)?'host-move':'guest-move';}
-    function updateStatus(){const guest=document.getElementById('guest-name'),legend=document.getElementById('guest-legend');guest.textContent=room.guest?.username||'Bekleniyor…';legend.textContent=room.guest?.username||'Oyuncu 2';statusEl.className=`room-status ${room.status}`;if(room.status==='waiting'){statusEl.textContent=`Arkadaşınızın katılması bekleniyor. Oda kodu: ${room.code}`;}else if(room.status==='completed'){if(room.game==='snake'){const winner=Number(room.state.winnerId||0);statusEl.textContent=winner?`${winner===Number(room.currentUserId)?'Kazandınız!':'Rakibiniz kazandı.'} ${room.state.reason==='collision'?'Bir oyuncu çarpıştı.':'Hedef uzunluğa ulaşıldı.'}`:'Oyun berabere tamamlandı.';}else if(room.game==='minesweeper'&&room.state.lost)statusEl.textContent='Bir mayın açıldı. Bu oyun tamamlandı.';else if(room.game==='sudoku'&&room.state.failed)statusEl.textContent='Üç yanlış hakkınızı kullandınız. Oyun bitti.';else{const elapsed=room.state.completedAt&&room.state.startedAt?room.state.completedAt-room.state.startedAt:null;statusEl.textContent=`Tebrikler, oyunu birlikte tamamladınız${elapsed?`! Süre: ${elapsed} sn`:'!'}`;}}else if(room.game==='snake'){statusEl.textContent=`${room.host.username}: ${room.state.snakes.host.length} · ${room.guest.username}: ${room.state.snakes.guest.length} · Hedef: ${room.state.targetLength}`;}else if(room.game==='sudoku'){const mistakes=Number(room.state.mistakes||0);statusEl.textContent=`Oyun başladı — toplam ${3-mistakes} yanlış hakkınız kaldı (${mistakes} / 3).`;}else statusEl.textContent='Oyun başladı — yaptığınız hamle arkadaşınızın ekranında da görünecek.';}
-    function render(){updateStatus();if(room.game==='sudoku')renderSudoku();else if(room.game==='snake')renderSnake();else renderMines();const controls=document.getElementById('room-controls');controls.style.pointerEvents=room.status==='playing'?'auto':'none';controls.style.opacity=room.status==='playing'?'1':'.5';}
-    function renderSudoku(){board.innerHTML='';const fragment=document.createDocumentFragment();room.state.values.forEach((value,index)=>{const cell=document.createElement('button');cell.type='button';cell.className='shared-cell';cell.dataset.index=String(index);cell.textContent=value==='0'?'':value;if(room.state.puzzle[index]!=='0')cell.classList.add('given');else{const ownerClass=playerClass(room.state.owners[index]);if(ownerClass)cell.classList.add(ownerClass);}if(index===selected)cell.classList.add('selected');cell.disabled=room.status!=='playing'||room.state.puzzle[index]!=='0';fragment.appendChild(cell);});board.appendChild(fragment);}
-    function renderMines(){const state=room.state,total=state.rows*state.cols,mines=new Set(state.minesFound||[]),revealed=new Set(state.revealed),flags=new Set(state.flags),fragment=document.createDocumentFragment();board.innerHTML='';board.style.gridTemplateColumns=`repeat(${state.cols},minmax(0,1fr))`;board.style.maxWidth=`${Math.min(580,state.cols*37)}px`;for(let index=0;index<total;index++){const cell=document.createElement('button');cell.type='button';cell.className='shared-cell';cell.dataset.index=String(index);if(revealed.has(index)){cell.classList.add('revealed');const ownerClass=playerClass(state.revealOwners[String(index)]);if(ownerClass)cell.classList.add(ownerClass);const number=state.numbers[String(index)];if(number)cell.textContent=String(number);}else if(flags.has(index)){cell.classList.add('flagged');const ownerClass=playerClass(state.flagOwners[String(index)]);if(ownerClass)cell.classList.add(ownerClass);cell.textContent='🚩';}else if(mines.has(index)){cell.classList.add('mine');cell.textContent='💣';}cell.disabled=room.status!=='playing';fragment.appendChild(cell);}board.appendChild(fragment);}
-    function renderSnake(){let canvas=board.querySelector('canvas');if(!canvas){board.innerHTML='';canvas=document.createElement('canvas');canvas.className='shared-snake-canvas';canvas.width=600;canvas.height=600;board.appendChild(canvas);}const context=canvas.getContext('2d'),grid=Number(room.state.grid),size=canvas.width/grid;context.fillStyle='#07140d';context.fillRect(0,0,canvas.width,canvas.height);context.strokeStyle='rgba(255,255,255,.035)';for(let i=1;i<grid;i++){context.beginPath();context.moveTo(i*size,0);context.lineTo(i*size,canvas.height);context.stroke();context.beginPath();context.moveTo(0,i*size);context.lineTo(canvas.width,i*size);context.stroke();}const food=room.state.food;context.fillStyle='#ef4444';context.beginPath();context.arc((food.x+.5)*size,(food.y+.5)*size,size*.34,0,Math.PI*2);context.fill();[['host','#22c55e','#86efac'],['guest','#a855f7','#e9d5ff']].forEach(([player,color,headColor])=>room.state.snakes[player].forEach((part,index)=>{context.fillStyle=index===0?headColor:color;context.fillRect(part.x*size+2,part.y*size+2,size-4,size-4);}));}
-    async function sendMove(data){if(sending||room.status!=='playing')return;sending=true;const body=new URLSearchParams({...data,[root.dataset.csrfName]:root.dataset.csrfHash});try{const response=await fetch(root.dataset.moveUrl,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8','X-Requested-With':'XMLHttpRequest'},body});const result=await response.json();if(result.csrfHash)root.dataset.csrfHash=result.csrfHash;if(!response.ok||!result.success){statusEl.textContent=result.message||'Hamle gönderilemedi.';return;}room=result.room;failures=0;render();schedulePoll();}catch(error){statusEl.textContent='Bağlantı kurulamadı; tekrar deneyin.';}finally{sending=false;}}
-    board.addEventListener('click',event=>{if(room.game==='snake')return;const cell=event.target.closest('.shared-cell');if(!cell)return;const index=Number(cell.dataset.index);if(room.game==='sudoku'){selected=index;render();}else sendMove({index:String(index),action:mode});});
-    board.addEventListener('dblclick',event=>{if(room.game!=='minesweeper')return;const cell=event.target.closest('.shared-cell.revealed');if(!cell)return;event.preventDefault();sendMove({index:cell.dataset.index,action:'chord'});});
-    board.addEventListener('contextmenu',event=>{if(room.game!=='minesweeper')return;const cell=event.target.closest('.shared-cell');if(!cell)return;event.preventDefault();sendMove({index:cell.dataset.index,action:'flag'});});
-    document.getElementById('room-controls').addEventListener('click',event=>{const number=event.target.closest('[data-number]'),modeButton=event.target.closest('[data-mode]'),directionButton=event.target.closest('[data-direction]');if(number&&selected!==null)sendMove({index:String(selected),number:number.dataset.number});if(modeButton){mode=modeButton.dataset.mode;document.querySelectorAll('[data-mode]').forEach(item=>item.classList.toggle('active',item===modeButton));}if(directionButton)sendMove({direction:directionButton.dataset.direction});});
-    document.addEventListener('keydown',event=>{if(room.game!=='snake')return;const map={ArrowUp:'up',w:'up',W:'up',ArrowDown:'down',s:'down',S:'down',ArrowLeft:'left',a:'left',A:'left',ArrowRight:'right',d:'right',D:'right'};if(map[event.key]){event.preventDefault();sendMove({direction:map[event.key]});}});
-    function pollDelay(){if(document.hidden)return 8000;if(room.status==='waiting')return 2500;if(room.game==='snake')return Math.min(180*(2**failures),2500);return Math.min(1000*(2**failures),10000);}
-    function schedulePoll(immediate=false){clearTimeout(pollTimer);if(room.status==='completed')return;pollTimer=setTimeout(poll,immediate?0:pollDelay());}
-    async function loadState(){const response=await fetch(root.dataset.stateUrl,{headers:{'X-Requested-With':'XMLHttpRequest'},cache:'no-store'});const result=await response.json();if(response.ok&&result.success){room=result.room;render();}}
-    async function poll(){if(sending){schedulePoll();return;}try{const response=await fetch(root.dataset.versionUrl,{headers:{'X-Requested-With':'XMLHttpRequest'},cache:'no-store'});const result=await response.json();if(!response.ok||!result.success)throw new Error();failures=0;if(Number(result.version)!==Number(room.version))await loadState();}catch(error){failures=Math.min(failures+1,4);}finally{schedulePoll();}}
-    document.addEventListener('visibilitychange',()=>{if(!document.hidden)schedulePoll(true);else schedulePoll();});
-    document.getElementById('leave-room-form')?.addEventListener('submit',()=>{leaving=true;});
-    document.querySelectorAll('[data-room-preserving-action]').forEach(form=>form.addEventListener('submit',()=>{preservingRoom=true;}));
-    window.addEventListener('pagehide',()=>{if(leaving||preservingRoom)return;leaving=true;const body=new URLSearchParams({[root.dataset.csrfName]:root.dataset.csrfHash});fetch(root.dataset.leaveUrl,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8','X-Requested-With':'XMLHttpRequest'},body,keepalive:true}).catch(()=>{});},{once:true});
-    render();schedulePoll();
+    const root = document.getElementById('shared-game'),
+        board = document.getElementById('shared-board'),
+        statusEl = document.getElementById('room-status');
+    if (!root || !board) return;
+    let room = JSON.parse(document.getElementById('initial-room-data').textContent),
+        selected = null,
+        mode = 'reveal',
+        sending = false,
+        loadingState = false,
+        pollTimer = null,
+        failures = 0,
+        leaving = false,
+        preservingRoom = false,
+        realtimeConnected = false;
+    function playerClass(owner) {
+        if (!owner) return '';
+        return Number(owner) === Number(room.host.id) ? 'host-move' : 'guest-move';
+    }
+    function updateStatus() {
+        const guest = document.getElementById('guest-name'),
+            legend = document.getElementById('guest-legend');
+        guest.textContent = room.guest?.username || 'Bekleniyor…';
+        legend.textContent = room.guest?.username || 'Oyuncu 2';
+        statusEl.className = `room-status ${room.status}`;
+        if (room.status === 'waiting')
+            statusEl.textContent = `Arkadaşınızın katılması bekleniyor. Oda kodu: ${room.code}`;
+        else if (room.status === 'completed') {
+            if (room.game === 'minesweeper' && room.state.lost)
+                statusEl.textContent = 'Bir mayın açıldı. Bu oyun tamamlandı.';
+            else if (room.game === 'sudoku' && room.state.failed)
+                statusEl.textContent = 'Üç yanlış hakkınızı kullandınız. Oyun bitti.';
+            else {
+                const elapsed =
+                    room.state.completedAt && room.state.startedAt
+                        ? room.state.completedAt - room.state.startedAt
+                        : null;
+                statusEl.textContent = `Tebrikler, oyunu birlikte tamamladınız${elapsed ? `! Süre: ${elapsed} sn` : '!'}`;
+            }
+        } else if (room.game === 'sudoku') {
+            const mistakes = Number(room.state.mistakes || 0);
+            statusEl.textContent = `Oyun başladı — toplam ${3 - mistakes} yanlış hakkınız kaldı (${mistakes} / 3).`;
+        } else
+            statusEl.textContent =
+                'Oyun başladı — yaptığınız hamle arkadaşınızın ekranında da görünecek.';
+    }
+    function render() {
+        updateStatus();
+        if (room.game === 'sudoku') renderSudoku();
+        else renderMines();
+        const controls = document.getElementById('room-controls');
+        controls.style.pointerEvents = room.status === 'playing' ? 'auto' : 'none';
+        controls.style.opacity = room.status === 'playing' ? '1' : '.5';
+    }
+    function renderSudoku() {
+        board.innerHTML = '';
+        const fragment = document.createDocumentFragment();
+        room.state.values.forEach((value, index) => {
+            const cell = document.createElement('button');
+            cell.type = 'button';
+            cell.className = 'shared-cell';
+            cell.dataset.index = String(index);
+            cell.textContent = value === '0' ? '' : value;
+            if (room.state.puzzle[index] !== '0') cell.classList.add('given');
+            else {
+                const ownerClass = playerClass(room.state.owners[index]);
+                if (ownerClass) cell.classList.add(ownerClass);
+            }
+            if (index === selected) cell.classList.add('selected');
+            cell.disabled = room.status !== 'playing' || room.state.puzzle[index] !== '0';
+            fragment.appendChild(cell);
+        });
+        board.appendChild(fragment);
+    }
+    function renderMines() {
+        const state = room.state,
+            total = state.rows * state.cols,
+            mines = new Set(state.minesFound || []),
+            revealed = new Set(state.revealed),
+            flags = new Set(state.flags),
+            fragment = document.createDocumentFragment();
+        board.innerHTML = '';
+        board.style.gridTemplateColumns = `repeat(${state.cols},minmax(0,1fr))`;
+        board.style.maxWidth = `${Math.min(580, state.cols * 37)}px`;
+        for (let index = 0; index < total; index++) {
+            const cell = document.createElement('button');
+            cell.type = 'button';
+            cell.className = 'shared-cell';
+            cell.dataset.index = String(index);
+            if (revealed.has(index)) {
+                cell.classList.add('revealed');
+                const ownerClass = playerClass(state.revealOwners[String(index)]);
+                if (ownerClass) cell.classList.add(ownerClass);
+                const number = state.numbers[String(index)];
+                if (number) {
+                    cell.dataset.number = String(number);
+                    cell.textContent = String(number);
+                }
+            } else if (flags.has(index)) {
+                cell.classList.add('flagged');
+                const ownerClass = playerClass(state.flagOwners[String(index)]);
+                if (ownerClass) cell.classList.add(ownerClass);
+                cell.textContent = '🚩';
+            } else if (mines.has(index)) {
+                cell.classList.add('mine');
+                cell.textContent = '💣';
+            }
+            cell.disabled = room.status !== 'playing';
+            fragment.appendChild(cell);
+        }
+        board.appendChild(fragment);
+    }
+    async function sendMove(data) {
+        if (sending || room.status !== 'playing') return;
+        sending = true;
+        const body = new URLSearchParams({
+            ...data,
+            [root.dataset.csrfName]: root.dataset.csrfHash,
+        });
+        try {
+            const response = await fetch(root.dataset.moveUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body,
+            });
+            const result = await response.json();
+            if (result.csrfHash) root.dataset.csrfHash = result.csrfHash;
+            if (!response.ok || !result.success)
+                throw new Error(result.message || 'Hamle gönderilemedi.');
+            room = result.room;
+            failures = 0;
+            render();
+            schedulePoll();
+        } catch (error) {
+            statusEl.textContent = error.message || 'Bağlantı kurulamadı; tekrar deneyin.';
+        } finally {
+            sending = false;
+        }
+    }
+    board.addEventListener('click', (event) => {
+        const cell = event.target.closest('.shared-cell');
+        if (!cell) return;
+        const index = Number(cell.dataset.index);
+        if (room.game === 'sudoku') {
+            selected = index;
+            render();
+            return;
+        }
+        if (cell.classList.contains('revealed')) return;
+        sendMove({ index: String(index), action: mode });
+    });
+    board.addEventListener('dblclick', (event) => {
+        if (room.game !== 'minesweeper') return;
+        const cell = event.target.closest('.shared-cell.revealed');
+        if (!cell) return;
+        event.preventDefault();
+        event.stopPropagation();
+        sendMove({ index: cell.dataset.index, action: 'chord' });
+    });
+    board.addEventListener('contextmenu', (event) => {
+        if (room.game !== 'minesweeper') return;
+        const cell = event.target.closest('.shared-cell');
+        if (!cell) return;
+        event.preventDefault();
+        sendMove({ index: cell.dataset.index, action: 'flag' });
+    });
+    document.getElementById('room-controls').addEventListener('click', (event) => {
+        const number = event.target.closest('[data-number]'),
+            modeButton = event.target.closest('[data-mode]');
+        if (number && selected !== null)
+            sendMove({ index: String(selected), number: number.dataset.number });
+        if (modeButton) {
+            mode = modeButton.dataset.mode;
+            document
+                .querySelectorAll('[data-mode]')
+                .forEach((item) => item.classList.toggle('active', item === modeButton));
+        }
+    });
+    function pollDelay() {
+        if (document.hidden) return 8000;
+        if (realtimeConnected) return 3000;
+        if (room.status === 'waiting') return 1500;
+        return Math.min(750 * 2 ** failures, 10000);
+    }
+    function schedulePoll(immediate = false) {
+        clearTimeout(pollTimer);
+        if (room.status === 'completed') return;
+        pollTimer = setTimeout(poll, immediate ? 0 : pollDelay());
+    }
+    async function loadState() {
+        if (loadingState) return;
+        loadingState = true;
+        try {
+            const response = await fetch(root.dataset.stateUrl, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    cache: 'no-store',
+                }),
+                result = await response.json();
+            if (response.ok && result.success) {
+                room = result.room;
+                failures = 0;
+                render();
+            }
+        } finally {
+            loadingState = false;
+        }
+    }
+    async function poll() {
+        if (sending) {
+            schedulePoll();
+            return;
+        }
+        try {
+            const response = await fetch(root.dataset.versionUrl, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                    cache: 'no-store',
+                }),
+                result = await response.json();
+            if (!response.ok || !result.success) throw new Error();
+            failures = 0;
+            if (Number(result.version) !== Number(room.version)) await loadState();
+        } catch (error) {
+            failures = Math.min(failures + 1, 4);
+        } finally {
+            schedulePoll();
+        }
+    }
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) schedulePoll(true);
+        else schedulePoll();
+    });
+    document.addEventListener('project:realtime-connected', () => {
+        realtimeConnected = true;
+        schedulePoll();
+    });
+    document.addEventListener('project:realtime-disconnected', () => {
+        realtimeConnected = false;
+        schedulePoll(true);
+    });
+    document.addEventListener('project:realtime-game', (event) => {
+        const update = event.detail;
+        if (
+            String(update?.roomCode || '').toUpperCase() !== String(room.code).toUpperCase() ||
+            Number(update?.version) <= Number(room.version)
+        )
+            return;
+        clearTimeout(pollTimer);
+        loadState().finally(() => schedulePoll());
+    });
+    document.getElementById('leave-room-form')?.addEventListener('submit', () => {
+        leaving = true;
+    });
+    document.querySelectorAll('[data-room-preserving-action]').forEach((form) =>
+        form.addEventListener('submit', () => {
+            preservingRoom = true;
+        }),
+    );
+    document.addEventListener('project:room-preserve', () => {
+        preservingRoom = true;
+    });
+    window.addEventListener(
+        'pagehide',
+        () => {
+            if (leaving || preservingRoom) return;
+            leaving = true;
+            const body = new URLSearchParams({ [root.dataset.csrfName]: root.dataset.csrfHash });
+            fetch(root.dataset.leaveUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body,
+                keepalive: true,
+            }).catch(() => {});
+        },
+        { once: true },
+    );
+    render();
+    schedulePoll();
 })();

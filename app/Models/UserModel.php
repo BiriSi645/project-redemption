@@ -14,11 +14,14 @@ class UserModel extends Model
     protected $allowedFields = [
         'username',
         'bio',
+        'profile_url',
         'experience_points',
         'email',
         'email_verified_at',
         'email_verification_token',
         'email_verification_expires_at',
+        'email_verification_attempts',
+        'email_verification_sent_at',
         'password_hash',
         'password_reset_token',
         'password_reset_expires_at',
@@ -47,17 +50,27 @@ class UserModel extends Model
     protected $validationRules = [
         'username' => [
             'label' => 'Kullanıcı adı',
-            'rules' => 'required|min_length[3]|max_length[100]|is_unique[users.username]',
+            'rules' => 'required|min_length[3]|max_length[50]',
         ],
 
         'email' => [
             'label' => 'E-posta',
-            'rules' => 'required|valid_email|is_unique[users.email]',
+            'rules' => 'required|valid_email|max_length[255]',
         ],
 
-        'password_hash' => [
-            'label' => 'Şifre',
-            'rules' => 'required',
+        'email_verification_attempts' => [
+            'label' => 'Doğrulama deneme sayısı',
+            'rules' => 'permit_empty|integer|greater_than_equal_to[0]|less_than_equal_to[5]',
+        ],
+
+        'email_verification_expires_at' => [
+            'label' => 'Doğrulama kodu son kullanma zamanı',
+            'rules' => 'permit_empty|valid_date[Y-m-d H:i:s]',
+        ],
+
+        'email_verification_sent_at' => [
+            'label' => 'Doğrulama kodu gönderim zamanı',
+            'rules' => 'permit_empty|valid_date[Y-m-d H:i:s]',
         ],
     ];
 

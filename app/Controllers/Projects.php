@@ -6,6 +6,7 @@ use App\Models\NotificationModel;
 use App\Models\ProjectItemModel;
 use App\Models\ProjectMemberModel;
 use App\Models\ProjectModel;
+use App\Models\ProjectSectionModel;
 use App\Models\UserModel;
 use CodeIgniter\Exceptions\PageNotFoundException;
 use RuntimeException;
@@ -42,9 +43,10 @@ class Projects extends BaseController
         $membership=$this->acceptedMembership($id);$project=(new ProjectModel())->select('projects.*, users.username AS owner_username')->join('users','users.id=projects.owner_id')->find($id);if(!$project)throw PageNotFoundException::forPageNotFound('Proje bulunamadı.');
         $members=(new ProjectMemberModel())->select('project_members.*, users.username, users.bio')->join('users','users.id=project_members.user_id')->where('project_id',$id)->whereIn('status',['accepted','pending'])->orderBy('role','ASC')->orderBy('username','ASC')->findAll();
         $items=(new ProjectItemModel())->select('project_items.*, creator.username AS creator_username, assignee.username AS assignee_username')->join('users creator','creator.id=project_items.created_by','left')->join('users assignee','assignee.id=project_items.assigned_to','left')->where('project_id',$id)->orderBy("FIELD(project_items.status,'in_progress','todo','done')",'',false)->orderBy('due_date','ASC')->findAll();
+        $sections=(new ProjectSectionModel())->where('project_id',$id)->orderBy('sort_order','ASC')->orderBy('id','ASC')->findAll();
         $accepted=array_values(array_filter($members,static fn(array $member): bool=>$member['status']==='accepted'));
         $pending=array_values(array_filter($members,static fn(array $member): bool=>$member['status']==='pending'));
-        return view('projects/show',['title'=>$project['name'],'project'=>$project,'membership'=>$membership,'members'=>$members,'items'=>$items,'accepted'=>$accepted,'pending'=>$pending,'isOwner'=>$membership['role']==='owner']);
+        return view('projects/show',['title'=>$project['name'],'project'=>$project,'membership'=>$membership,'members'=>$members,'items'=>$items,'sections'=>$sections,'accepted'=>$accepted,'pending'=>$pending,'isOwner'=>$membership['role']==='owner']);
     }
 
     public function invite(int $id)
@@ -78,7 +80,8 @@ class Projects extends BaseController
         $membership=$this->acceptedMembership($id);if(!$this->validate(['title'=>'required|min_length[2]|max_length[160]','description'=>'permit_empty|max_length[3000]','start_date'=>'permit_empty|valid_date[Y-m-d]','due_date'=>'permit_empty|valid_date[Y-m-d]']))return redirect()->back()->withInput()->with('errors',$this->validator->getErrors());
         $startDate=$this->request->getPost('start_date')?:null;$dueDate=$this->request->getPost('due_date')?:null;if($startDate&&$dueDate&&$dueDate<$startDate)return redirect()->back()->withInput()->with('error','Bitiş tarihi başlangıç tarihinden önce olamaz.');
         $assigned=(int)$this->request->getPost('assigned_to');if($assigned>0&&$membership['role']!=='owner')return redirect()->back()->with('error','İş atamalarını yalnızca proje sahibi yapabilir.');if($assigned>0&&!$this->isAcceptedMember($id,$assigned))return redirect()->back()->with('error','Atanan kullanıcı proje üyesi değil.');
-        (new ProjectItemModel())->insert(['project_id'=>$id,'created_by'=>(int)session()->get('user_id'),'assigned_to'=>$assigned?:null,'title'=>trim((string)$this->request->getPost('title')),'description'=>trim((string)$this->request->getPost('description')),'status'=>'todo','start_date'=>$startDate,'due_date'=>$dueDate]);
+        $sectionId=(int)$this->request->getPost('section_id');if($sectionId>0&&$membership['role']!=='owner')return redirect()->back()->with('error','Gantt başlığını yalnızca proje sahibi seçebilir.');if($sectionId>0&&!$this->sectionBelongsToProject($id,$sectionId))return redirect()->back()->withInput()->with('error','Seçilen Gantt başlığı bu projeye ait değil.');
+        (new ProjectItemModel())->insert(['project_id'=>$id,'created_by'=>(int)session()->get('user_id'),'assigned_to'=>$assigned?:null,'section_id'=>$sectionId?:null,'title'=>trim((string)$this->request->getPost('title')),'description'=>trim((string)$this->request->getPost('description')),'status'=>'todo','start_date'=>$startDate,'due_date'=>$dueDate]);
         db_connect()->table('projects')->where('id',$id)->update(['updated_at'=>date('Y-m-d H:i:s')]);return redirect()->back()->with('success','İş kalemi eklendi.');
     }
 
@@ -97,12 +100,86 @@ class Projects extends BaseController
         $this->ownedProject($projectId);$item=(new ProjectItemModel())->where('project_id',$projectId)->find($itemId);if(!$item)throw PageNotFoundException::forPageNotFound('İş kalemi bulunamadı.');if(!$this->validate(['start_date'=>'permit_empty|valid_date[Y-m-d]','due_date'=>'permit_empty|valid_date[Y-m-d]']))return redirect()->back()->with('errors',$this->validator->getErrors());$start=$this->request->getPost('start_date')?:null;$due=$this->request->getPost('due_date')?:null;if($start&&$due&&$due<$start)return redirect()->back()->with('error','Bitiş tarihi başlangıç tarihinden önce olamaz.');(new ProjectItemModel())->update($itemId,['start_date'=>$start,'due_date'=>$due]);db_connect()->table('projects')->where('id',$projectId)->update(['updated_at'=>date('Y-m-d H:i:s')]);return redirect()->back()->with('success','İş zaman planı güncellendi.');
     }
 
+    public function storeSection(int $projectId)
+    {
+        $this->ownedProject($projectId);
+        if (!$this->validate(['name' => 'required|min_length[2]|max_length[100]', 'color' => 'required|regex_match[/^#[0-9a-fA-F]{6}$/]'])) {
+            return redirect()->back()->with('errors', $this->validator->getErrors());
+        }
+
+        $name = trim((string) $this->request->getPost('name'));
+        $model = new ProjectSectionModel();
+        if ($model->where('project_id', $projectId)->where('name', $name)->first()) {
+            return redirect()->back()->with('error', 'Bu isimde bir Gantt başlığı zaten var.');
+        }
+
+        $last = $model->where('project_id', $projectId)->orderBy('sort_order', 'DESC')->first();
+        $model->insert([
+            'project_id' => $projectId,
+            'name' => $name,
+            'color' => strtolower((string) $this->request->getPost('color')),
+            'sort_order' => (int) ($last['sort_order'] ?? -1) + 1,
+        ]);
+        $this->touchProject($projectId);
+
+        return redirect()->back()->with('success', 'Gantt başlığı eklendi.');
+    }
+
+    public function updateSection(int $projectId, int $sectionId)
+    {
+        $this->ownedProject($projectId);
+        $model = new ProjectSectionModel();
+        $section = $model->where('project_id', $projectId)->find($sectionId);
+        if (!$section) throw PageNotFoundException::forPageNotFound('Gantt başlığı bulunamadı.');
+        if (!$this->validate(['color' => 'required|regex_match[/^#[0-9a-fA-F]{6}$/]'])) {
+            return redirect()->back()->with('errors', $this->validator->getErrors());
+        }
+
+        $model->update($sectionId, ['color' => strtolower((string) $this->request->getPost('color'))]);
+        $this->touchProject($projectId);
+
+        return redirect()->back()->with('success', 'Gantt başlığının rengi güncellendi.');
+    }
+
+    public function setItemSection(int $projectId, int $itemId)
+    {
+        $this->ownedProject($projectId);
+        $item = (new ProjectItemModel())->where('project_id', $projectId)->find($itemId);
+        if (!$item) throw PageNotFoundException::forPageNotFound('İş kalemi bulunamadı.');
+
+        $sectionId = (int) $this->request->getPost('section_id');
+        if ($sectionId > 0 && !$this->sectionBelongsToProject($projectId, $sectionId)) {
+            return redirect()->back()->with('error', 'Seçilen Gantt başlığı bu projeye ait değil.');
+        }
+
+        (new ProjectItemModel())->update($itemId, ['section_id' => $sectionId ?: null]);
+        $this->touchProject($projectId);
+
+        return redirect()->back()->with('success', 'Görevin Gantt başlığı güncellendi.');
+    }
+
+    public function deleteSection(int $projectId, int $sectionId)
+    {
+        $this->ownedProject($projectId);
+        $section = (new ProjectSectionModel())->where('project_id', $projectId)->find($sectionId);
+        if (!$section) throw PageNotFoundException::forPageNotFound('Gantt başlığı bulunamadı.');
+
+        (new ProjectSectionModel())->delete($sectionId);
+        $this->touchProject($projectId);
+
+        return redirect()->back()->with('success', 'Gantt başlığı silindi; görevler başlıksız alana taşındı.');
+    }
+
     private function acceptedMembership(int $projectId): array
     { $membership=(new ProjectMemberModel())->where(['project_id'=>$projectId,'user_id'=>(int)session()->get('user_id'),'status'=>'accepted'])->first();if(!$membership)throw PageNotFoundException::forPageNotFound('Projeye erişemezsiniz.');return $membership; }
     private function ownedProject(int $id): array
     { $project=(new ProjectModel())->where('owner_id',(int)session()->get('user_id'))->find($id);if(!$project)throw PageNotFoundException::forPageNotFound('Projeyi yönetemezsiniz.');return $project; }
     private function isAcceptedMember(int $projectId,int $userId): bool
     { return (new ProjectMemberModel())->where(['project_id'=>$projectId,'user_id'=>$userId,'status'=>'accepted'])->first()!==null; }
+    private function sectionBelongsToProject(int $projectId,int $sectionId): bool
+    { return (new ProjectSectionModel())->where(['id'=>$sectionId,'project_id'=>$projectId])->first()!==null; }
+    private function touchProject(int $projectId): void
+    { db_connect()->table('projects')->where('id',$projectId)->update(['updated_at'=>date('Y-m-d H:i:s')]); }
     private function invitationForUser(int $id): array
     { $row=(new ProjectMemberModel())->select('project_members.*, projects.name, projects.description, projects.color, users.username AS inviter_username')->join('projects','projects.id=project_members.project_id')->join('users','users.id=project_members.invited_by','left')->where('project_members.user_id',(int)session()->get('user_id'))->find($id);if(!$row)throw PageNotFoundException::forPageNotFound('Proje daveti bulunamadı.');return $row; }
 }

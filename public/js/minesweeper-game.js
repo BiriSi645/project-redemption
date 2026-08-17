@@ -1,35 +1,403 @@
 (() => {
     'use strict';
-    const root=document.getElementById('minesweeper-game'),boardElement=document.getElementById('mine-board');if(!root||!boardElement)return;
-    const difficultyElement=document.getElementById('mine-difficulty'),remainingElement=document.getElementById('mine-remaining'),timeElement=document.getElementById('mine-time'),bestElement=document.getElementById('mine-best'),messageElement=document.getElementById('mine-message'),restartButton=document.getElementById('mine-restart'),scoreStatus=document.getElementById('mine-score-status'),leaderboardElement=document.getElementById('mine-leaderboard'),leaderboardSubtitle=document.getElementById('game-leaderboard-subtitle');
-    const settings={beginner:{rows:9,cols:9,mines:10},medium:{rows:12,cols:12,mines:24},expert:{rows:16,cols:16,mines:40}};
-    const difficultyLabels={beginner:'Başlangıç seviyesi',medium:'Orta seviye',expert:'Zor seviye'};
-    const scoreData=JSON.parse(document.getElementById('mine-score-data').textContent);
-    const leaderboards=scoreData.leaderboards,personalBests=scoreData.personalBests;
-    const storageKey=`project-redemption:minesweeper:${root.dataset.userId}`;
-    let config,cells,started,ended,flags,revealed,time,timer,paused,mode='reveal';
+    const root = document.getElementById('minesweeper-game'),
+        boardElement = document.getElementById('mine-board');
+    if (!root || !boardElement) return;
+    const difficultyElement = document.getElementById('mine-difficulty'),
+        remainingElement = document.getElementById('mine-remaining'),
+        timeElement = document.getElementById('mine-time'),
+        bestElement = document.getElementById('mine-best'),
+        messageElement = document.getElementById('mine-message'),
+        restartButton = document.getElementById('mine-restart'),
+        scoreStatus = document.getElementById('mine-score-status'),
+        leaderboardElement = document.getElementById('mine-leaderboard'),
+        leaderboardSubtitle = document.getElementById('game-leaderboard-subtitle');
+    const fallbackSettings = {
+        beginner: { rows: 9, cols: 9, mines: 10 },
+        medium: { rows: 12, cols: 12, mines: 24 },
+        expert: { rows: 16, cols: 16, mines: 40 },
+        master: { rows: 16, cols: 32, mines: 85 },
+        nightmare: { rows: 32, cols: 32, mines: 180 },
+    };
+    const fallbackDifficultyLabels = {
+        beginner: 'Başlangıç seviyesi',
+        medium: 'Orta seviye',
+        expert: 'Zor seviye',
+        master: 'Usta seviye',
+        nightmare: 'Kabus seviye',
+    };
+    const scoreData = JSON.parse(document.getElementById('mine-score-data').textContent);
+    const settings = scoreData.difficulties || fallbackSettings;
+    const difficultyLabels = Object.fromEntries(
+        Object.entries(settings).map(([key, difficulty]) => [
+            key,
+            difficulty.subtitle || fallbackDifficultyLabels[key] || key,
+        ]),
+    );
+    const leaderboards = scoreData.leaderboards,
+        personalBests = scoreData.personalBests;
+    const storageKey = `project-redemption:minesweeper:${root.dataset.userId}`;
+    let config,
+        cells,
+        started,
+        ended,
+        flags,
+        revealed,
+        time,
+        timer,
+        paused,
+        mode = 'reveal';
 
-    const clearSaved=()=>{try{localStorage.removeItem(storageKey)}catch(error){}};
-    function save(){if(ended)return clearSaved();try{localStorage.setItem(storageKey,JSON.stringify({version:1,difficulty:difficultyElement.value,cells,started,flags,revealed,time,mode}))}catch(error){}}
-    function startTimer(){clearInterval(timer);paused=false;timer=setInterval(()=>{time++;timeElement.textContent=String(time);save();},1000);}
-    function resume(){if(started&&paused&&!ended){startTimer();messageElement.textContent='Oyun devam ediyor.';}}
-    function restore(){let saved;try{saved=JSON.parse(localStorage.getItem(storageKey)||'null')}catch(error){return false}if(!saved||saved.version!==1||!settings[saved.difficulty]||!Array.isArray(saved.cells)||saved.cells.length!==settings[saved.difficulty].rows*settings[saved.difficulty].cols)return false;difficultyElement.value=saved.difficulty;config=settings[saved.difficulty];cells=saved.cells;started=Boolean(saved.started);ended=false;flags=Math.max(0,Number(saved.flags)||0);revealed=Math.max(0,Number(saved.revealed)||0);time=Math.max(0,Number(saved.time)||0);paused=started;mode=saved.mode==='flag'?'flag':'reveal';timeElement.textContent=String(time);remainingElement.textContent=String(config.mines-flags);messageElement.className='mine-message';messageElement.textContent=started?'Oyun kaldığınız yerden yüklendi ve duraklatıldı. Bir hamleyle devam edin.':'Kaldığınız tahta yüklendi. İlk hücre her zaman güvenlidir.';scoreStatus.textContent='';const best=Number(personalBests[difficultyElement.value]);bestElement.textContent=best?`${best} sn`:'—';leaderboardSubtitle.textContent=difficultyLabels[difficultyElement.value];renderLeaderboard(leaderboards[difficultyElement.value]||[]);document.querySelectorAll('[data-mode]').forEach(item=>item.classList.toggle('active',item.dataset.mode===mode));render();return true;}
+    const clearSaved = () => {
+        try {
+            localStorage.removeItem(storageKey);
+        } catch (error) {}
+    };
+    function save() {
+        if (ended) return clearSaved();
+        try {
+            localStorage.setItem(
+                storageKey,
+                JSON.stringify({
+                    version: 1,
+                    difficulty: difficultyElement.value,
+                    cells,
+                    started,
+                    flags,
+                    revealed,
+                    time,
+                    mode,
+                }),
+            );
+        } catch (error) {}
+    }
+    function startTimer() {
+        clearInterval(timer);
+        paused = false;
+        timer = setInterval(() => {
+            time++;
+            timeElement.textContent = String(time);
+            save();
+        }, 1000);
+    }
+    function resume() {
+        if (started && paused && !ended) {
+            startTimer();
+            messageElement.textContent = 'Oyun devam ediyor.';
+        }
+    }
+    function restore() {
+        let saved;
+        try {
+            saved = JSON.parse(localStorage.getItem(storageKey) || 'null');
+        } catch (error) {
+            return false;
+        }
+        if (
+            !saved ||
+            saved.version !== 1 ||
+            !settings[saved.difficulty] ||
+            !Array.isArray(saved.cells) ||
+            saved.cells.length !== settings[saved.difficulty].rows * settings[saved.difficulty].cols
+        )
+            return false;
+        difficultyElement.value = saved.difficulty;
+        config = settings[saved.difficulty];
+        cells = saved.cells;
+        started = Boolean(saved.started);
+        ended = false;
+        flags = Math.max(0, Number(saved.flags) || 0);
+        revealed = Math.max(0, Number(saved.revealed) || 0);
+        time = Math.max(0, Number(saved.time) || 0);
+        paused = started;
+        mode = saved.mode === 'flag' ? 'flag' : 'reveal';
+        timeElement.textContent = String(time);
+        remainingElement.textContent = String(config.mines - flags);
+        messageElement.className = 'mine-message';
+        messageElement.textContent = started
+            ? 'Oyun kaldığınız yerden yüklendi ve duraklatıldı. Bir hamleyle devam edin.'
+            : 'Kaldığınız tahta yüklendi. İlk hücre her zaman güvenlidir.';
+        scoreStatus.textContent = '';
+        const best = Number(personalBests[difficultyElement.value]);
+        bestElement.textContent = best ? `${best} sn` : '—';
+        leaderboardSubtitle.textContent = difficultyLabels[difficultyElement.value];
+        renderLeaderboard(leaderboards[difficultyElement.value] || []);
+        document
+            .querySelectorAll('[data-mode]')
+            .forEach((item) => item.classList.toggle('active', item.dataset.mode === mode));
+        render();
+        return true;
+    }
 
-    function reset(){clearInterval(timer);clearSaved();config=settings[difficultyElement.value];cells=Array.from({length:config.rows*config.cols},(_,index)=>({index,mine:false,revealed:false,flagged:false,number:0}));started=false;ended=false;paused=false;flags=0;revealed=0;time=0;timeElement.textContent='0';remainingElement.textContent=String(config.mines);messageElement.className='mine-message';messageElement.textContent='İlk hücre her zaman güvenlidir. Başlamak için bir hücre açın.';scoreStatus.textContent='';const best=Number(personalBests[difficultyElement.value]);bestElement.textContent=best?`${best} sn`:'—';leaderboardSubtitle.textContent=difficultyLabels[difficultyElement.value];renderLeaderboard(leaderboards[difficultyElement.value]||[]);render();save();}
-    function render(){boardElement.innerHTML='';boardElement.style.gridTemplateColumns=`repeat(${config.cols}, minmax(0, 1fr))`;boardElement.style.maxWidth=`${Math.min(560,config.cols*36)}px`;cells.forEach(cell=>{const button=document.createElement('button');button.type='button';button.className='mine-cell';button.dataset.index=String(cell.index);button.setAttribute('role','gridcell');button.setAttribute('aria-label',cellLabel(cell));if(cell.revealed){button.classList.add('revealed');if(cell.mine){button.classList.add('mine');button.textContent='💣';}else if(cell.number){button.dataset.number=String(cell.number);button.textContent=String(cell.number);}}else if(cell.flagged){button.classList.add('flagged');button.textContent='🚩';}boardElement.appendChild(button);});}
-    function cellLabel(cell){if(cell.flagged)return'Bayraklı hücre';if(!cell.revealed)return'Kapalı hücre';if(cell.mine)return'Mayın';return cell.number?`${cell.number} komşu mayın`:'Boş hücre';}
-    function neighbors(index){const row=Math.floor(index/config.cols),col=index%config.cols,list=[];for(let y=-1;y<=1;y++)for(let x=-1;x<=1;x++){if(x===0&&y===0)continue;const r=row+y,c=col+x;if(r>=0&&r<config.rows&&c>=0&&c<config.cols)list.push(r*config.cols+c);}return list;}
-    function plantMines(safeIndex){const forbidden=new Set([safeIndex,...neighbors(safeIndex)]),available=cells.map(c=>c.index).filter(i=>!forbidden.has(i));for(let i=available.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[available[i],available[j]]=[available[j],available[i]];}available.slice(0,config.mines).forEach(i=>cells[i].mine=true);cells.forEach(cell=>{if(!cell.mine)cell.number=neighbors(cell.index).filter(i=>cells[i].mine).length;});started=true;startTimer();}
-    function reveal(index){if(ended)return;resume();const cell=cells[index];if(cell.revealed||cell.flagged)return;if(!started)plantMines(index);if(cell.mine){cell.revealed=true;return lose(index);}const queue=[index],visited=new Set();while(queue.length){const current=queue.shift();if(visited.has(current))continue;visited.add(current);const item=cells[current];if(item.revealed||item.flagged||item.mine)continue;item.revealed=true;revealed++;if(item.number===0)neighbors(current).forEach(i=>queue.push(i));}render();if(revealed===cells.length-config.mines)win();else save();}
-    function revealAround(index){if(ended||!started)return;const cell=cells[index];if(!cell.revealed||cell.number===0)return;const adjacent=neighbors(index),flagCount=adjacent.filter(i=>cells[i].flagged).length;if(flagCount!==cell.number)return;for(const neighbor of adjacent){if(ended)break;const item=cells[neighbor];if(!item.flagged&&!item.revealed)reveal(neighbor);}}
-    function toggleFlag(index){if(ended)return;resume();const cell=cells[index];if(cell.revealed)return;if(!cell.flagged&&flags>=config.mines)return;cell.flagged=!cell.flagged;flags+=cell.flagged?1:-1;remainingElement.textContent=String(config.mines-flags);render();save();}
-    function lose(explodedIndex){ended=true;clearInterval(timer);clearSaved();cells.forEach(cell=>{if(cell.mine)cell.revealed=true;});render();const exploded=boardElement.querySelector(`[data-index="${explodedIndex}"]`);exploded?.classList.add('exploded');messageElement.className='mine-message lose';messageElement.textContent='Mayına bastınız. Yeni bir tahta ile tekrar deneyin.';}
-    function win(){ended=true;clearInterval(timer);clearSaved();cells.forEach(cell=>{if(cell.mine)cell.flagged=true;});flags=config.mines;remainingElement.textContent='0';const finalTime=Math.max(1,time);render();messageElement.className='mine-message win';messageElement.textContent=`Tebrikler! Tarlayı ${finalTime} saniyede temizlediniz.`;saveScore(finalTime);}
-    async function saveScore(finalTime){scoreStatus.textContent='Süreniz kaydediliyor…';const difficulty=difficultyElement.value,body=new URLSearchParams({game:'minesweeper',difficulty,score:String(finalTime),[root.dataset.csrfName]:root.dataset.csrfHash});try{const response=await fetch(root.dataset.scoreUrl,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8','X-Requested-With':'XMLHttpRequest'},body});const data=await response.json();if(!response.ok||!data.success)throw new Error(data.message||'Süre kaydedilemedi.');personalBests[difficulty]=Number(data.personalBest);leaderboards[difficulty]=data.leaderboard;bestElement.textContent=`${data.personalBest} sn`;renderLeaderboard(data.leaderboard);scoreStatus.textContent=data.improved?'Yeni kişisel rekorunuz kaydedildi!':'Süreniz kaydedildi; kişisel rekorunuz değişmedi.';}catch(error){scoreStatus.textContent='Süreniz şu anda kaydedilemedi.';}}
-    function renderLeaderboard(entries){leaderboardElement.innerHTML='';if(!entries.length){const empty=document.createElement('li');empty.className='leaderboard-empty';empty.textContent='Henüz kayıtlı skor yok.';leaderboardElement.appendChild(empty);return;}const medals=['🥇','🥈','🥉'];entries.forEach((entry,index)=>{const item=document.createElement('li'),rank=document.createElement('span'),player=document.createElement('span'),value=document.createElement('strong');rank.className='leaderboard-rank';rank.textContent=medals[index];player.className='leaderboard-player';player.textContent=entry.username;value.textContent=`${entry.score} sn`;item.append(rank,player,value);leaderboardElement.appendChild(item);});}
-    boardElement.addEventListener('click',event=>{const button=event.target.closest('.mine-cell');if(!button)return;const index=Number(button.dataset.index);mode==='flag'?toggleFlag(index):reveal(index);});
-    boardElement.addEventListener('dblclick',event=>{const button=event.target.closest('.mine-cell');if(!button)return;event.preventDefault();revealAround(Number(button.dataset.index));});
-    boardElement.addEventListener('contextmenu',event=>{const button=event.target.closest('.mine-cell');if(!button)return;event.preventDefault();toggleFlag(Number(button.dataset.index));});
-    document.querySelectorAll('[data-mode]').forEach(button=>button.addEventListener('click',()=>{mode=button.dataset.mode;document.querySelectorAll('[data-mode]').forEach(item=>item.classList.toggle('active',item===button));}));
-    difficultyElement.addEventListener('change',reset);restartButton.addEventListener('click',reset);document.addEventListener('visibilitychange',()=>{if(document.hidden&&started&&!paused&&!ended){clearInterval(timer);paused=true;messageElement.textContent='Oyun duraklatıldı. Bir hamleyle devam edin.';save();}});window.addEventListener('pagehide',()=>{clearInterval(timer);save()});if(!restore())reset();
+    function reset() {
+        clearInterval(timer);
+        clearSaved();
+        config = settings[difficultyElement.value];
+        cells = Array.from({ length: config.rows * config.cols }, (_, index) => ({
+            index,
+            mine: false,
+            revealed: false,
+            flagged: false,
+            number: 0,
+        }));
+        started = false;
+        ended = false;
+        paused = false;
+        flags = 0;
+        revealed = 0;
+        time = 0;
+        timeElement.textContent = '0';
+        remainingElement.textContent = String(config.mines);
+        messageElement.className = 'mine-message';
+        messageElement.textContent =
+            'İlk hücre her zaman güvenlidir. Başlamak için bir hücre açın.';
+        scoreStatus.textContent = '';
+        const best = Number(personalBests[difficultyElement.value]);
+        bestElement.textContent = best ? `${best} sn` : '—';
+        leaderboardSubtitle.textContent = difficultyLabels[difficultyElement.value];
+        renderLeaderboard(leaderboards[difficultyElement.value] || []);
+        render();
+        save();
+    }
+    function render() {
+        boardElement.innerHTML = '';
+        boardElement.style.gridTemplateColumns = `repeat(${config.cols}, minmax(0, 1fr))`;
+        boardElement.style.maxWidth = `${Math.min(560, config.cols * 36)}px`;
+        boardElement.style.setProperty(
+            '--mine-cell-font-size',
+            `${Math.max(8, Math.min(17, 420 / config.cols))}px`,
+        );
+        cells.forEach((cell) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'mine-cell';
+            button.dataset.index = String(cell.index);
+            button.setAttribute('role', 'gridcell');
+            button.setAttribute('aria-label', cellLabel(cell));
+            if (cell.revealed) {
+                button.classList.add('revealed');
+                if (cell.mine) {
+                    button.classList.add('mine');
+                    button.textContent = '💣︎';
+                } else if (cell.number) {
+                    button.dataset.number = String(cell.number);
+                    button.textContent = String(cell.number);
+                }
+            } else if (cell.flagged) {
+                button.classList.add('flagged');
+                button.textContent = '🚩︎';
+            }
+            boardElement.appendChild(button);
+        });
+    }
+    function cellLabel(cell) {
+        if (cell.flagged) return 'Bayraklı hücre';
+        if (!cell.revealed) return 'Kapalı hücre';
+        if (cell.mine) return 'Mayın';
+        return cell.number ? `${cell.number} komşu mayın` : 'Boş hücre';
+    }
+    function neighbors(index) {
+        const row = Math.floor(index / config.cols),
+            col = index % config.cols,
+            list = [];
+        for (let y = -1; y <= 1; y++)
+            for (let x = -1; x <= 1; x++) {
+                if (x === 0 && y === 0) continue;
+                const r = row + y,
+                    c = col + x;
+                if (r >= 0 && r < config.rows && c >= 0 && c < config.cols)
+                    list.push(r * config.cols + c);
+            }
+        return list;
+    }
+    function plantMines(safeIndex) {
+        const forbidden = new Set([safeIndex, ...neighbors(safeIndex)]),
+            available = cells.map((c) => c.index).filter((i) => !forbidden.has(i));
+        for (let i = available.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [available[i], available[j]] = [available[j], available[i]];
+        }
+        available.slice(0, config.mines).forEach((i) => (cells[i].mine = true));
+        cells.forEach((cell) => {
+            if (!cell.mine) cell.number = neighbors(cell.index).filter((i) => cells[i].mine).length;
+        });
+        started = true;
+        startTimer();
+    }
+    function reveal(index) {
+        if (ended) return;
+        resume();
+        const cell = cells[index];
+        if (cell.revealed || cell.flagged) return;
+        if (!started) plantMines(index);
+        if (cell.mine) {
+            cell.revealed = true;
+            return lose(index);
+        }
+        const queue = [index],
+            visited = new Set();
+        while (queue.length) {
+            const current = queue.shift();
+            if (visited.has(current)) continue;
+            visited.add(current);
+            const item = cells[current];
+            if (item.revealed || item.flagged || item.mine) continue;
+            item.revealed = true;
+            revealed++;
+            if (item.number === 0) neighbors(current).forEach((i) => queue.push(i));
+        }
+        render();
+        if (revealed === cells.length - config.mines) win();
+        else save();
+    }
+    function revealAround(index) {
+        if (ended || !started) return;
+        const cell = cells[index];
+        if (!cell.revealed || cell.number === 0) return;
+        const adjacent = neighbors(index),
+            flagCount = adjacent.filter((i) => cells[i].flagged).length;
+        if (flagCount !== cell.number) return;
+        for (const neighbor of adjacent) {
+            if (ended) break;
+            const item = cells[neighbor];
+            if (!item.flagged && !item.revealed) reveal(neighbor);
+        }
+    }
+    function toggleFlag(index) {
+        if (ended) return;
+        resume();
+        const cell = cells[index];
+        if (cell.revealed) return;
+        if (!cell.flagged && flags >= config.mines) return;
+        cell.flagged = !cell.flagged;
+        flags += cell.flagged ? 1 : -1;
+        remainingElement.textContent = String(config.mines - flags);
+        render();
+        save();
+    }
+    function lose(explodedIndex) {
+        ended = true;
+        clearInterval(timer);
+        clearSaved();
+        cells.forEach((cell) => {
+            if (cell.mine) cell.revealed = true;
+        });
+        render();
+        const exploded = boardElement.querySelector(`[data-index="${explodedIndex}"]`);
+        exploded?.classList.add('exploded');
+        messageElement.className = 'mine-message lose';
+        messageElement.textContent = 'Mayına bastınız. Yeni bir tahta ile tekrar deneyin.';
+    }
+    function win() {
+        ended = true;
+        clearInterval(timer);
+        clearSaved();
+        cells.forEach((cell) => {
+            if (cell.mine) cell.flagged = true;
+        });
+        flags = config.mines;
+        remainingElement.textContent = '0';
+        const finalTime = Math.max(1, time);
+        render();
+        messageElement.className = 'mine-message win';
+        messageElement.textContent = `Tebrikler! Tarlayı ${finalTime} saniyede temizlediniz.`;
+        saveScore(finalTime);
+    }
+    async function saveScore(finalTime) {
+        scoreStatus.textContent = 'Süreniz kaydediliyor…';
+        const difficulty = difficultyElement.value,
+            body = new URLSearchParams({
+                game: 'minesweeper',
+                difficulty,
+                score: String(finalTime),
+                [root.dataset.csrfName]: root.dataset.csrfHash,
+            });
+        try {
+            const response = await fetch(root.dataset.scoreUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body,
+            });
+            const data = await response.json();
+            if (!response.ok || !data.success)
+                throw new Error(data.message || 'Süre kaydedilemedi.');
+            personalBests[difficulty] = Number(data.personalBest);
+            leaderboards[difficulty] = data.leaderboard;
+            bestElement.textContent = `${data.personalBest} sn`;
+            renderLeaderboard(data.leaderboard);
+            scoreStatus.textContent = data.improved
+                ? 'Yeni kişisel rekorunuz kaydedildi!'
+                : 'Süreniz kaydedildi; kişisel rekorunuz değişmedi.';
+        } catch (error) {
+            scoreStatus.textContent = 'Süreniz şu anda kaydedilemedi.';
+        }
+    }
+    function renderLeaderboard(entries) {
+        leaderboardElement.innerHTML = '';
+        if (!entries.length) {
+            const empty = document.createElement('li');
+            empty.className = 'leaderboard-empty';
+            empty.textContent = 'Henüz kayıtlı skor yok.';
+            leaderboardElement.appendChild(empty);
+            return;
+        }
+        const medals = ['🥇', '🥈', '🥉'];
+        entries.forEach((entry, index) => {
+            const item = document.createElement('li'),
+                rank = document.createElement('span'),
+                player = document.createElement('span'),
+                value = document.createElement('strong');
+            rank.className = 'leaderboard-rank';
+            rank.textContent = medals[index];
+            player.className = 'leaderboard-player';
+            player.textContent = entry.username;
+            value.textContent = `${entry.score} sn`;
+            item.append(rank, player, value);
+            leaderboardElement.appendChild(item);
+        });
+    }
+    boardElement.addEventListener('click', (event) => {
+        const button = event.target.closest('.mine-cell');
+        if (!button) return;
+        const index = Number(button.dataset.index);
+        mode === 'flag' ? toggleFlag(index) : reveal(index);
+    });
+    boardElement.addEventListener('dblclick', (event) => {
+        const button = event.target.closest('.mine-cell');
+        if (!button) return;
+        event.preventDefault();
+        revealAround(Number(button.dataset.index));
+    });
+    boardElement.addEventListener('contextmenu', (event) => {
+        const button = event.target.closest('.mine-cell');
+        if (!button) return;
+        event.preventDefault();
+        toggleFlag(Number(button.dataset.index));
+    });
+    document.querySelectorAll('[data-mode]').forEach((button) =>
+        button.addEventListener('click', () => {
+            mode = button.dataset.mode;
+            document
+                .querySelectorAll('[data-mode]')
+                .forEach((item) => item.classList.toggle('active', item === button));
+        }),
+    );
+    difficultyElement.addEventListener('change', reset);
+    restartButton.addEventListener('click', reset);
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden && started && !paused && !ended) {
+            clearInterval(timer);
+            paused = true;
+            messageElement.textContent = 'Oyun duraklatıldı. Bir hamleyle devam edin.';
+            save();
+        }
+    });
+    window.addEventListener('pagehide', () => {
+        clearInterval(timer);
+        save();
+    });
+    if (!restore()) reset();
 })();
