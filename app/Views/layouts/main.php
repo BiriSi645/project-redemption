@@ -1290,7 +1290,7 @@ $unreadMessageCount = (new \App\Models\DirectConversationModel())->unreadCount(
     <div class="live-toast-stack" data-live-toast-stack data-status-url="<?= site_url(
     "system/live-updates",
 ) ?>" aria-live="polite" aria-atomic="false"></div>
-    <div data-realtime-client></div>
+    <div data-realtime-client data-token-url="<?= site_url("system/realtime-token") ?>"></div>
     <script src="<?= base_url("js/speech-input.js") ?>"></script>
     <script src="<?= base_url("js/message-popover.js") ?>"></script>
     <script src="<?= base_url("js/notification-popover.js") ?>"></script>
@@ -1345,21 +1345,43 @@ $unreadMessageCount = (new \App\Models\DirectConversationModel())->unreadCount(
     </script>
     <script>
         (() => {
+            let realtimeConnected = false;
+            let heartbeatTimer = null;
+
             const heartbeat = () => {
-                fetch(<?= json_encode(
-                    site_url("system/heartbeat"),
-                ) ?>, {
-                    cache: 'no-store',
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                }).catch(() => {});
+                window.clearTimeout(heartbeatTimer);
+
+                if (!document.hidden && !realtimeConnected) {
+                    fetch(<?= json_encode(
+                        site_url("system/heartbeat"),
+                    ) ?>, {
+                        cache: 'no-store',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    }).catch(() => {});
+                }
+
+                heartbeatTimer = window.setTimeout(heartbeat, 30000);
             };
-            heartbeat();
-            window.setInterval(heartbeat, 30000);
-            document.addEventListener('visibilitychange', () => {
-                if (!document.hidden) heartbeat();
+
+            document.addEventListener('project:realtime-connected', () => {
+                realtimeConnected = true;
             });
+            document.addEventListener('project:realtime-disconnected', () => {
+                realtimeConnected = false;
+                heartbeat();
+            });
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden && !realtimeConnected) heartbeat();
+            });
+            window.addEventListener(
+                'pagehide',
+                () => window.clearTimeout(heartbeatTimer),
+                { once: true }
+            );
+
+            heartbeat();
         })();
     </script>
     <?= view("partials/update_notifier", [

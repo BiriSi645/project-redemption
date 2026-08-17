@@ -127,7 +127,7 @@ class ContentSecurityPolicy extends BaseConfig
      *
      * @var list<string>|string
      */
-    public $connectSrc = 'self';
+    public $connectSrc = ['self', 'ws://localhost:8081', 'ws://127.0.0.1:8081'];
 
     /**
      * Specifies the origins that can serve web fonts.

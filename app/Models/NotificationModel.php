@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Libraries\RealtimePublisher;
 use CodeIgniter\Model;
 
 class NotificationModel extends Model
@@ -11,6 +12,52 @@ class NotificationModel extends Model
     protected $returnType = 'array';
     protected $useTimestamps = false;
     protected $allowedFields = ['user_id','actor_user_id','note_id','task_id','game_room_id','type','message','target_path','notification_key','read_at','created_at'];
+
+    protected $afterInsert = ['publishRealtimeAfterInsert'];
+    protected $afterInsertBatch = ['publishRealtimeAfterInsertBatch'];
+
+
+    protected function publishRealtimeAfterInsert(array $eventData): array
+    {
+        if (! empty($eventData['result']) && ! empty($eventData['data']['user_id'])) {
+            (new RealtimePublisher())->user(
+                (int) $eventData['data']['user_id'],
+                'notification',
+                [
+                    'notificationId' => (int) ($eventData['id'] ?? 0),
+                    'notificationType' => (string) ($eventData['data']['type'] ?? ''),
+                ]
+            );
+        }
+
+        return $eventData;
+    }
+
+    protected function publishRealtimeAfterInsertBatch(array $eventData): array
+    {
+        if (empty($eventData['result']) || empty($eventData['data']) || ! is_array($eventData['data'])) {
+            return $eventData;
+        }
+
+        $events = [];
+        foreach ($eventData['data'] as $row) {
+            if (! is_array($row) || empty($row['user_id'])) {
+                continue;
+            }
+
+            $events[] = [
+                'recipientUserId' => (int) $row['user_id'],
+                'eventType' => 'notification',
+                'payload' => [
+                    'notificationType' => (string) ($row['type'] ?? ''),
+                ],
+            ];
+        }
+
+        (new RealtimePublisher())->events($events);
+
+        return $eventData;
+    }
 
     public function inbox(int $userId, int $perPage = 20): array
     {

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Libraries\RealtimePublisher;
 use CodeIgniter\Model;
 
 class NoteModel extends Model
@@ -18,6 +19,9 @@ class NoteModel extends Model
         'category',
         'is_public',
     ];
+
+    protected $afterInsert = ['publishPublicNoteAfterInsert'];
+    protected $afterUpdate = ['publishPublicNoteAfterUpdate'];
 
     protected $useTimestamps = true;
     protected $createdField  = 'created_at';
@@ -48,6 +52,30 @@ class NoteModel extends Model
             'rules' => 'required|in_list[0,1]',
         ],
     ];
+
+
+    protected function publishPublicNoteAfterInsert(array $eventData): array
+    {
+        if (! empty($eventData['result']) && (int) ($eventData['data']['is_public'] ?? 0) === 1) {
+            (new RealtimePublisher())->broadcast('public-note', [
+                'noteId' => (int) ($eventData['id'] ?? 0),
+            ]);
+        }
+
+        return $eventData;
+    }
+
+    protected function publishPublicNoteAfterUpdate(array $eventData): array
+    {
+        if (! empty($eventData['result']) && array_key_exists('is_public', $eventData['data'])) {
+            $ids = array_map('intval', (array) ($eventData['id'] ?? []));
+            (new RealtimePublisher())->broadcast('public-note', [
+                'noteId' => $ids[0] ?? 0,
+            ]);
+        }
+
+        return $eventData;
+    }
 
     public function getVisibleTo(int $userId, bool $isAdmin, string $search = '', string $category = '', string $scope = 'all', ?int $perPage = null): array
     {

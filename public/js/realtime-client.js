@@ -6,9 +6,42 @@
         reconnectTimer = null,
         stopped = false,
         attempts = 0;
-    const websocketUrl = () =>
-        root.dataset.websocketUrl ||
-        `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.hostname}:8081`;
+    function websocketUrl() {
+        if (root.dataset.websocketUrl) {
+            return root.dataset.websocketUrl;
+        }
+
+        const isLocal =
+            location.hostname === 'localhost' ||
+            location.hostname === '127.0.0.1' ||
+            location.hostname === '::1';
+
+        if (isLocal) {
+            return 'ws://127.0.0.1:8081';
+        }
+
+        return `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/ws`;
+    }
+
+    async function authenticate(activeSocket) {
+        const tokenUrl = root.dataset.tokenUrl;
+        if (!tokenUrl) throw new Error('Realtime token adresi bulunamadı.');
+
+        const response = await fetch(tokenUrl, {
+            credentials: 'same-origin',
+            headers: { Accept: 'application/json' },
+            cache: 'no-store',
+        });
+        const payload = await response.json().catch(() => null);
+
+        if (!response.ok || !payload?.success || typeof payload.token !== 'string') {
+            throw new Error(payload?.message || 'Realtime token alınamadı.');
+        }
+
+        if (activeSocket !== socket || activeSocket.readyState !== WebSocket.OPEN) return;
+        activeSocket.send(JSON.stringify({ type: 'auth', token: payload.token }));
+    }
+
     function connect() {
         if (
             stopped ||
@@ -22,7 +55,11 @@
             scheduleReconnect();
             return;
         }
-        socket.addEventListener('message', (event) => {
+        const activeSocket = socket;
+        activeSocket.addEventListener('open', () => {
+            authenticate(activeSocket).catch(() => activeSocket.close(4001, 'Kimlik doğrulama başarısız'));
+        });
+        activeSocket.addEventListener('message', (event) => {
             let data;
             try {
                 data = JSON.parse(event.data);
@@ -50,12 +87,12 @@
                 );
             }
         });
-        socket.addEventListener('close', () => {
-            socket = null;
+        activeSocket.addEventListener('close', () => {
+            if (socket === activeSocket) socket = null;
             document.dispatchEvent(new CustomEvent('project:realtime-disconnected'));
             scheduleReconnect();
         });
-        socket.addEventListener('error', () => socket?.close());
+        activeSocket.addEventListener('error', () => activeSocket.close());
     }
     function scheduleReconnect() {
         if (stopped || document.hidden) return;

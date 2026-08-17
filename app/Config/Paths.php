@@ -22,6 +22,14 @@ class Paths
     {
         if (getenv('VERCEL')) {
             $this->writableDirectory = sys_get_temp_dir() . '/project-redemption-writable';
+
+            foreach (['cache', 'debugbar', 'logs', 'session', 'uploads'] as $directory) {
+                $path = $this->writableDirectory . '/' . $directory;
+
+                if (! is_dir($path)) {
+                    mkdir($path, 0775, true);
+                }
+            }
         }
     }
 

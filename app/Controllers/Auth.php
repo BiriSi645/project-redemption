@@ -214,56 +214,131 @@ class Auth extends BaseController
 
     public function storeLogin()
     {
-        if (session()->get('logged_in')) {
-            return redirect()->to(site_url('dashboard'));
-        }
 
-        $email    = strtolower(trim((string) $this->request->getPost('email')));
-        if ($this->rateLimited('login:' . hash('sha256', $email), 10)) {
-            return redirect()->back()->withInput()->with('errors', ['login' => 'Çok fazla giriş denemesi yapıldı. Lütfen birkaç dakika sonra tekrar deneyin.']);
-        }
-        $password = (string) $this->request->getPost('password');
-        $user     = (new UserModel())->where('email', $email)->first();
+            if (session()->get('logged_in')) {
+                return redirect()->to(site_url('dashboard'));
+            }
 
-        if (! $user || ! password_verify($password, $user['password_hash'])) {
-            AuditLogger::record($user ? (int) $user['id'] : null, 'auth.login_failed', 'Başarısız giriş denemesi', 'POST', 'login', 401);
-            return redirect()->back()->withInput()->with('errors', [
-                'login' => 'E-posta veya şifre hatalı.',
-            ]);
-        }
-
-        if ((int) ($user['is_active'] ?? 1) !== 1) {
-            AuditLogger::record((int) $user['id'], 'auth.login_blocked', 'Pasif hesaba giriş denemesi', 'POST', 'login', 403);
-            return redirect()->back()->withInput()->with('errors', ['login'=>'Hesabınız devre dışı bırakılmış.']);
-        }
-        
-        if (empty($user['email_verified_at'])) {
-        session()->set('verification_email', $user['email']);
-        return redirect()
-            ->to(site_url('verify-email'))
-            ->with(
-                'verification_pending',
-                $this->verificationPendingData($user)
+            $email = strtolower(
+                trim((string) $this->request->getPost('email'))
             );
-        }
 
-        session()->regenerate(true);
-        $this->clearRateLimit('login:' . hash('sha256', $email));
-        session()->set([
-            'user_id'   => (int) $user['id'],
-            'username'  => $user['username'],
-            'email'     => $user['email'],
-            'role'      => $user['role'] ?? 'user',
-            'theme'     => $user['theme'] ?? 'system',
-            'notifications_enabled' => (int) ($user['notifications_enabled'] ?? 0),
-            'experience_points' => (int) ($user['experience_points'] ?? 0),
-            'logged_in' => true,
-        ]);
-        (new UserModel())->skipValidation(true)->update((int) $user['id'], ['last_seen_at' => date('Y-m-d H:i:s')]);
+            if ($this->rateLimited(
+                'login:' . hash('sha256', $email),
+                10
+            )) {
+                return redirect()
+                    ->back()
+                    ->withInput()
+                    ->with('errors', [
+                        'login' => 'Çok fazla giriş denemesi yapıldı. Lütfen birkaç dakika sonra tekrar deneyin.',
+                    ]);
+            }
 
-        AuditLogger::record((int) $user['id'], 'auth.login', 'Kullanıcı giriş yaptı', 'POST', 'login', 200);
+            $password = (string) $this->request->getPost('password');
 
-        return redirect()->to(site_url('dashboard'));
+            $user = (new UserModel())
+                ->where('email', $email)
+                ->first();
+
+            if (
+                ! $user
+                || ! password_verify(
+                    $password,
+                    $user['password_hash']
+                )
+            ) {
+                AuditLogger::record(
+                    $user ? (int) $user['id'] : null,
+                    'auth.login_failed',
+                    'Başarısız giriş denemesi',
+                    'POST',
+                    'login',
+                    401
+                );
+
+                return redirect()
+                    ->back()
+                    ->withInput()
+                    ->with('errors', [
+                        'login' => 'E-posta veya şifre hatalı.',
+                    ]);
+            }
+
+            if ((int) ($user['is_active'] ?? 1) !== 1) {
+                AuditLogger::record(
+                    (int) $user['id'],
+                    'auth.login_blocked',
+                    'Pasif hesaba giriş denemesi',
+                    'POST',
+                    'login',
+                    403
+                );
+
+                return redirect()
+                    ->back()
+                    ->withInput()
+                    ->with('errors', [
+                        'login' => 'Hesabınız devre dışı bırakılmış.',
+                    ]);
+            }
+
+            if (empty($user['email_verified_at'])) {
+                session()->set(
+                    'verification_email',
+                    $user['email']
+                );
+
+                return redirect()
+                    ->to(site_url('verify-email'))
+                    ->with(
+                        'verification_pending',
+                        $this->verificationPendingData($user)
+                    );
+            }
+
+            session()->regenerate(true);
+
+            $this->clearRateLimit(
+                'login:' . hash('sha256', $email)
+            );
+
+            session()->set([
+                'user_id' => (int) $user['id'],
+                'username' => $user['username'],
+                'email' => $user['email'],
+                'role' => $user['role'] ?? 'user',
+                'theme' => $user['theme'] ?? 'system',
+                'notifications_enabled' => (int) (
+                    $user['notifications_enabled'] ?? 0
+                ),
+                'experience_points' => (int) (
+                    $user['experience_points'] ?? 0
+                ),
+                'logged_in' => true,
+            ]);
+
+            (new UserModel())
+                ->skipValidation(true)
+                ->update(
+                    (int) $user['id'],
+                    [
+                        'last_seen_at' => date('Y-m-d H:i:s'),
+                    ]
+                );
+
+            AuditLogger::record(
+                (int) $user['id'],
+                'auth.login',
+                'Kullanıcı giriş yaptı',
+                'POST',
+                'login',
+                200
+            );
+
+            return redirect()->to(site_url('dashboard'));
+
+
     }
 
     public function logout()

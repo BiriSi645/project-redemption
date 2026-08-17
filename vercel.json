@@ -3,10 +3,17 @@
   "functions": {
     "api/index.php": {
       "runtime": "vercel-php@0.6.2",
-      "maxDuration": 60
+      "maxDuration": 300
+    },
+    "api/ws.js": {
+      "maxDuration": 300
     }
   },
   "routes": [
+    {
+      "src": "/api/ws",
+      "dest": "/api/ws.js"
+    },
     {
       "src": "/(.*\\.(?:css|js|map|png|jpg|jpeg|gif|svg|webp|ico|woff|woff2|ttf|eot))$",
       "dest": "/public/$1"

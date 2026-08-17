@@ -15,6 +15,7 @@ $routes->group('', ['filter' => 'auth'], static function ($routes) {
     $routes->get('system/heartbeat', 'Presence::heartbeat');
     $routes->get('system/active-users', 'Presence::activeUsers');
     $routes->get('system/live-updates', 'LiveUpdates::status');
+    $routes->get('system/realtime-token', 'Realtime::token');
     $routes->get('users/(:num)', 'Users::show/$1');
     $routes->get('users/u', 'Users::byUsername');
     $routes->get('users/u/(:segment)', 'Users::byUsername/$1');

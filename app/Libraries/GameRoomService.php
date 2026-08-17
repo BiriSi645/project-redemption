@@ -33,7 +33,9 @@ class GameRoomService
                     'state' => json_encode($state, JSON_UNESCAPED_UNICODE), 'version' => 1,
                 ], true);
                 if ($id !== false) {
-                    return $model->withPlayers($code);
+                    $room = $model->withPlayers($code);
+                    $this->publishRoomUpdate($room);
+                    return $room;
                 }
             } catch (\Throwable) {
                 // Çok düşük ihtimalli oda kodu çakışmasında yeni kod üret.
@@ -77,7 +79,9 @@ class GameRoomService
             $db->table('game_rooms')->where('id', $room['id'])->update(['guest_room_seen_at' => date('Y-m-d H:i:s')]);
         }
         $db->transCommit();
-        return (new GameRoomModel())->withPlayers($code);
+        $fresh = (new GameRoomModel())->withPlayers($code);
+        $this->publishRoomUpdate($fresh);
+        return $fresh;
     }
 
     public function getForPlayer(string $code, int $userId): array
@@ -127,6 +131,7 @@ class GameRoomService
         ]);
         $db->transCommit();
         $fresh = (new GameRoomModel())->withPlayers(strtoupper($code));
+        $this->publishRoomUpdate($fresh);
         return $this->publicRoom($fresh, $userId);
         } catch (\Throwable $e) {
             $db->transRollback();
@@ -173,6 +178,24 @@ class GameRoomService
         }
         $this->deleteRooms($deleteIds);
         $cache->save('game_rooms_presence_cleanup', '1', 10);
+    }
+
+    private function publishRoomUpdate(?array $room): void
+    {
+        if (! $room) {
+            return;
+        }
+
+        (new RealtimePublisher())->user(
+            [(int) $room['host_user_id'], (int) ($room['guest_user_id'] ?? 0)],
+            'game-room',
+            [
+                'roomCode' => (string) $room['code'],
+                'game' => (string) $room['game'],
+                'status' => (string) $room['status'],
+                'version' => (int) $room['version'],
+            ]
+        );
     }
 
     private function newSudoku(string $difficulty): array
