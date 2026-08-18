@@ -188,10 +188,6 @@ class Auth extends BaseController
             return redirect()->to(site_url('dashboard'));
         }
 
-        if ($this->rateLimited('register', 5)) {
-            return redirect()->back()->withInput()->with('error', 'Çok fazla kayıt denemesi yapıldı. Lütfen birkaç dakika sonra tekrar deneyin.');
-        }
-
         $email = strtolower(trim((string) session()->get('verification_email')));
         if ($email === '') {
             return redirect()->to(site_url('login'))->with('error', 'Önce doğrulama kodu isteyin.');
@@ -891,11 +887,6 @@ class Auth extends BaseController
 
         $email = service('email');
 
-        $email->setFrom(
-            env('email.fromEmail'),
-            env('email.fromName', 'Project Redemption')
-        );
-
         $email->setTo($user['email']);
 
         $email->setSubject(
@@ -1253,14 +1244,6 @@ class Auth extends BaseController
     ): bool {
         $email = service('email');
 
-        $email->setFrom(
-            env('email.fromEmail'),
-            env(
-                'email.fromName',
-                'Project Redemption'
-            )
-        );
-
         $email->setTo(
             (string) $user['email']
         );
@@ -1315,16 +1298,20 @@ class Auth extends BaseController
             </p>
         ');
 
-        if ($email->send(false)) {
-            return true;
-        }
+       if ($email->send(false)) {
+    return true;
+}
 
-        log_message(
-            'error',
-            'Doğrulama kodu e-postası gönderilemedi: '
-            . $email->printDebugger()
-        );
-
-        return false;
+    if ($email->send(false)) {
+        return true;
     }
+
+    log_message(
+        'error',
+        'Doğrulama kodu e-postası gönderilemedi: '
+        . $email->printDebugger([])
+    );
+
+    return false;
+        }
 }

@@ -182,14 +182,21 @@
     });
     function pollDelay() {
         if (document.hidden) return 8000;
-        if (realtimeConnected) return 3000;
         if (room.status === 'waiting') return 1500;
+
         return Math.min(750 * 2 ** failures, 10000);
     }
     function schedulePoll(immediate = false) {
         clearTimeout(pollTimer);
-        if (room.status === 'completed') return;
-        pollTimer = setTimeout(poll, immediate ? 0 : pollDelay());
+
+        if (room.status === 'completed' || realtimeConnected) {
+            return;
+        }
+
+        pollTimer = setTimeout(
+            poll,
+            immediate ? 0 : pollDelay()
+        );
     }
     async function loadState() {
         if (loadingState) return;
@@ -235,7 +242,10 @@
     });
     document.addEventListener('project:realtime-connected', () => {
         realtimeConnected = true;
-        schedulePoll();
+
+        clearTimeout(pollTimer);
+
+        loadState();
     });
     document.addEventListener('project:realtime-disconnected', () => {
         realtimeConnected = false;
@@ -243,13 +253,16 @@
     });
     document.addEventListener('project:realtime-game', (event) => {
         const update = event.detail;
+
         if (
-            String(update?.roomCode || '').toUpperCase() !== String(room.code).toUpperCase() ||
+            String(update?.roomCode || '').toUpperCase() !==
+                String(room.code).toUpperCase() ||
             Number(update?.version) <= Number(room.version)
-        )
+        ) {
             return;
-        clearTimeout(pollTimer);
-        loadState().finally(() => schedulePoll());
+        }
+
+        loadState();
     });
     document.getElementById('leave-room-form')?.addEventListener('submit', () => {
         leaving = true;

@@ -123,4 +123,38 @@ class Email extends BaseConfig
      * Enable notify message from server
      */
     public bool $DSN = false;
+
+    public function __construct()
+    {
+        parent::__construct();
+
+        /*
+        * Vercel production mail ayarları.
+        *
+        * MAIL_SMTP_HOST tanımlı değilse buraya girmez.
+        * Böylece local ortam mevcut .env ayarlarını
+        * kullanmaya devam eder.
+        */
+        $smtpHost = getenv('MAIL_SMTP_HOST');
+
+        if ($smtpHost === false || $smtpHost === '') {
+            return;
+        }
+
+        $this->fromEmail = getenv('MAIL_FROM_EMAIL') ?: '';
+        $this->fromName  = getenv('MAIL_FROM_NAME') ?: 'Project Redemption';
+
+        $this->protocol = 'smtp';
+
+        $this->SMTPHost = $smtpHost;
+        $this->SMTPUser = getenv('MAIL_SMTP_USER') ?: '';
+        $this->SMTPPass = getenv('MAIL_SMTP_PASS') ?: '';
+
+        $this->SMTPPort = (int) (getenv('MAIL_SMTP_PORT') ?: 587);
+
+        $this->SMTPCrypto = getenv('MAIL_SMTP_CRYPTO') ?: 'tls';
+
+        $this->SMTPTimeout = 10;
+    }
 }
+
