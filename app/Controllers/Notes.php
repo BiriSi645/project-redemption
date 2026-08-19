@@ -62,12 +62,13 @@ class Notes extends BaseController
     public function store()
     {
         $noteModel = new NoteModel();
+        $isPrivate = $this->request->getPost('is_private') === '1';
         $data = [
             'user_id'   => (int) session()->get('user_id'),
             'title'     => trim((string) $this->request->getPost('title')),
             'content'   => trim((string) $this->request->getPost('content')),
             'category'  => $this->cleanCategory(),
-            'is_public' => $this->request->getPost('is_public') === '1' ? 1 : 0,
+            'is_public' => $isPrivate ? 0 : 1,
         ];
 
         $mentionService = new NoteMentionService();
@@ -103,11 +104,12 @@ class Notes extends BaseController
     {
         $ownedNote = $this->findOwnedNote($id);
         $noteModel = new NoteModel();
+        $isPrivate = $this->request->getPost('is_private') === '1';
         $data = [
             'title'     => trim((string) $this->request->getPost('title')),
             'content'   => trim((string) $this->request->getPost('content')),
             'category'  => $this->cleanCategory(),
-            'is_public' => $this->request->getPost('is_public') === '1' ? 1 : 0,
+            'is_public' => $isPrivate ? 0 : 1,
         ];
 
         $mentionService = new NoteMentionService();

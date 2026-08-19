@@ -21,34 +21,6 @@ class Profile extends BaseController
         ]);
     }
 
-    public function update()
-    {
-        $userId = (int) session()->get('user_id');
-        $email = strtolower(trim((string) $this->request->getPost('email')));
-        $theme = (string) $this->request->getPost('theme');
-
-        $rules = [
-            'email' => "required|valid_email|is_unique[users.email,id,{$userId}]",
-            'theme' => 'required|in_list[light,dark,system]',
-        ];
-
-        if (! $this->validateData(['email'=>$email,'theme'=>$theme], $rules)) {
-            return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
-        }
-
-        $notifications = $this->request->getPost('notifications_enabled') === '1' ? 1 : 0;
-        (new UserModel())->skipValidation(true)->update($userId, [
-            'email' => $email,
-            'theme' => $theme,
-            'language' => 'tr',
-            'notifications_enabled' => $notifications,
-        ]);
-
-        session()->set(['email'=>$email,'theme'=>$theme,'notifications_enabled'=>$notifications]);
-
-        return redirect()->to(site_url('profile'))->with('success', 'Profil ayarları güncellendi.');
-    }
-
     public function password()
     {
         $userId = (int) session()->get('user_id');
@@ -67,6 +39,585 @@ class Profile extends BaseController
         (new UserModel())->skipValidation(true)->update($userId, ['password_hash'=>password_hash($password, PASSWORD_DEFAULT)]);
 
         return redirect()->to(site_url('profile'))->with('success', 'Şifreniz değiştirildi.');
+    }
+
+    public function requestEmailChange()
+    {
+        $userId = (int) session()->get('user_id');
+
+        $userModel = new UserModel();
+        $user = $userModel->find($userId);
+
+        if (! $user) {
+            return redirect()
+                ->to(site_url('profile'))
+                ->with('errors', [
+                    'email' => 'Kullanıcı bulunamadı.',
+                ]);
+        }
+
+        $newEmail = strtolower(
+            trim(
+                (string) $this->request->getPost('new_email')
+            )
+        );
+
+        $currentPassword =
+            (string) $this->request->getPost('email_current_password');
+
+        if ($currentPassword === '') {
+            $currentPassword =
+                (string) $this->request->getPost('current_password');
+        }
+
+        /*
+        * 1. Mevcut şifre doğru mu?
+        */
+        if (
+            $currentPassword === ''
+            || ! password_verify(
+                $currentPassword,
+                $user['password_hash']
+            )
+        ) {
+            return redirect()
+                ->to(site_url('profile'))
+                ->withInput()
+                ->with('errors', [
+                    'email' => 'Mevcut şifreniz hatalı.',
+                ]);
+        }
+
+        /*
+        * 2. Yeni e-posta geçerli mi?
+        */
+        if (
+            $newEmail === ''
+            || ! filter_var(
+                $newEmail,
+                FILTER_VALIDATE_EMAIL
+            )
+        ) {
+            return redirect()
+                ->to(site_url('profile'))
+                ->withInput()
+                ->with('errors', [
+                    'email' => 'Geçerli bir e-posta adresi girin.',
+                ]);
+        }
+
+        /*
+        * 3. Zaten kullanılan e-posta ile
+        * aynı adres olmasın.
+        */
+        if (
+            strtolower((string) $user['email'])
+            === $newEmail
+        ) {
+            return redirect()
+                ->to(site_url('profile'))
+                ->withInput()
+                ->with('errors', [
+                    'email' => 'Yeni e-posta adresiniz mevcut e-posta adresinizle aynı olamaz.',
+                ]);
+        }
+
+        /*
+        * 4. Başka kullanıcı bu adresi
+        * kullanıyor mu?
+        */
+        $existingUser = $userModel
+            ->where('email', $newEmail)
+            ->first();
+
+        if ($existingUser) {
+            return redirect()
+                ->to(site_url('profile'))
+                ->withInput()
+                ->with('errors', [
+                    'email' => 'Bu e-posta adresi başka bir hesap tarafından kullanılıyor.',
+                ]);
+        }
+
+        /*
+        * Çok kısa sürede sürekli kod
+        * gönderilmesini engelle.
+        */
+        if (
+            ! empty($user['pending_email_verification_sent_at'])
+        ) {
+            $lastSent = strtotime(
+                $user['pending_email_verification_sent_at']
+            );
+
+            if (
+                $lastSent !== false
+                && time() - $lastSent < 60
+            ) {
+                return redirect()
+                    ->to(site_url('profile'))
+                    ->with('errors', [
+                        'email' => 'Yeni bir doğrulama kodu istemeden önce 60 saniye bekleyin.',
+                    ]);
+            }
+        }
+
+        /*
+        * 5. 6 haneli doğrulama kodu üret.
+        */
+        $verificationCode = str_pad(
+            (string) random_int(0, 999999),
+            6,
+            '0',
+            STR_PAD_LEFT
+        );
+
+        /*
+        * Kodu DB'de açık şekilde
+        * saklamıyoruz.
+        */
+        $tokenHash = password_hash(
+            $verificationCode,
+            PASSWORD_DEFAULT
+        );
+
+        $now = date('Y-m-d H:i:s');
+
+        $expiresAt = date(
+            'Y-m-d H:i:s',
+            time() + 600
+        );
+
+        /*
+        * 6. Gerçek email alanına dokunma.
+        * Yeni adresi pending_email olarak tut.
+        */
+        $updated = $userModel
+            ->skipValidation(true)
+            ->update($userId, [
+                'pending_email' =>
+                    $newEmail,
+
+                'pending_email_verification_token' =>
+                    $tokenHash,
+
+                'pending_email_verification_expires_at' =>
+                    $expiresAt,
+
+                'pending_email_verification_attempts' =>
+                    0,
+
+                'pending_email_verification_sent_at' =>
+                    $now,
+            ]);
+
+        if (! $updated) {
+            return redirect()
+                ->to(site_url('profile'))
+                ->with('errors', [
+                    'email' => 'E-posta değişikliği başlatılamadı.',
+                ]);
+        }
+
+        /*
+        * 7. Kodu YENİ e-posta adresine gönder.
+        */
+        if (
+            ! $this->sendEmailChangeCode(
+                $user,
+                $newEmail,
+                $verificationCode
+            )
+        ) {
+            /*
+            * Mail gönderilemediyse bekleyen
+            * değişikliği temizle.
+            */
+            $userModel
+                ->skipValidation(true)
+                ->update($userId, [
+                    'pending_email' => null,
+                    'pending_email_verification_token' => null,
+                    'pending_email_verification_expires_at' => null,
+                    'pending_email_verification_attempts' => 0,
+                    'pending_email_verification_sent_at' => null,
+                ]);
+
+            return redirect()
+                ->to(site_url('profile'))
+                ->with('errors', [
+                    'email' => 'Doğrulama e-postası gönderilemedi. Daha sonra tekrar deneyin.',
+                ]);
+        }
+
+        return redirect()
+            ->to(site_url('profile'))
+            ->with(
+                'success',
+                'Yeni e-posta adresinize 6 haneli doğrulama kodu gönderildi.'
+            );
+    }
+    public function verifyEmailChange()
+    {
+        $userId = (int) session()->get('user_id');
+
+        $userModel = new UserModel();
+        $user = $userModel->find($userId);
+
+        if (! $user) {
+            return redirect()
+                ->to(site_url('profile'))
+                ->with('errors', [
+                    'email' => 'Kullanıcı bulunamadı.',
+                ]);
+        }
+
+        $code = trim(
+            (string) $this->request->getPost('code')
+        );
+
+        /*
+        * Bekleyen bir e-posta değişikliği var mı?
+        */
+        if (
+            empty($user['pending_email'])
+            || empty($user['pending_email_verification_token'])
+            || empty($user['pending_email_verification_expires_at'])
+        ) {
+            return redirect()
+                ->to(site_url('profile'))
+                ->with('errors', [
+                    'email' => 'Bekleyen bir e-posta değişikliği bulunamadı.',
+                ]);
+        }
+
+        /*
+        * Kod mutlaka 6 rakam olmalı.
+        */
+        if (! preg_match('/^\d{6}$/', $code)) {
+            return redirect()
+                ->to(site_url('profile'))
+                ->with('errors', [
+                    'email' => '6 haneli doğrulama kodunu girin.',
+                ]);
+        }
+
+        /*
+        * Kodun süresi geçmiş mi?
+        */
+        $expiresAt = strtotime(
+            $user['pending_email_verification_expires_at']
+        );
+
+        if (
+            $expiresAt === false
+            || $expiresAt < time()
+        ) {
+            $userModel
+                ->skipValidation(true)
+                ->update($userId, [
+                    'pending_email' => null,
+                    'pending_email_verification_token' => null,
+                    'pending_email_verification_expires_at' => null,
+                    'pending_email_verification_attempts' => 0,
+                    'pending_email_verification_sent_at' => null,
+                ]);
+
+            return redirect()
+                ->to(site_url('profile'))
+                ->with('errors', [
+                    'email' => 'Doğrulama kodunun süresi doldu. Yeni bir kod isteyin.',
+                ]);
+        }
+
+        $attempts = (int) (
+            $user['pending_email_verification_attempts'] ?? 0
+        );
+
+        /*
+        * Çok fazla yanlış deneme yapılmış mı?
+        */
+        if ($attempts >= 5) {
+            $userModel
+                ->skipValidation(true)
+                ->update($userId, [
+                    'pending_email' => null,
+                    'pending_email_verification_token' => null,
+                    'pending_email_verification_expires_at' => null,
+                    'pending_email_verification_attempts' => 0,
+                    'pending_email_verification_sent_at' => null,
+                ]);
+
+            return redirect()
+                ->to(site_url('profile'))
+                ->with('errors', [
+                    'email' => 'Çok fazla hatalı kod denemesi yapıldı. Yeni bir kod isteyin.',
+                ]);
+        }
+
+        /*
+        * Kod doğru mu?
+        */
+        if (! password_verify(
+            $code,
+            $user['pending_email_verification_token']
+        )) {
+            $attempts++;
+
+            if ($attempts >= 5) {
+                $userModel
+                    ->skipValidation(true)
+                    ->update($userId, [
+                        'pending_email' => null,
+                        'pending_email_verification_token' => null,
+                        'pending_email_verification_expires_at' => null,
+                        'pending_email_verification_attempts' => 0,
+                        'pending_email_verification_sent_at' => null,
+                    ]);
+
+                return redirect()
+                    ->to(site_url('profile'))
+                    ->with('errors', [
+                        'email' => 'Doğrulama kodu hatalı. Deneme sınırına ulaştınız; yeni bir kod isteyin.',
+                    ]);
+            }
+
+            $userModel
+                ->skipValidation(true)
+                ->update($userId, [
+                    'pending_email_verification_attempts' => $attempts,
+                ]);
+
+            return redirect()
+                ->to(site_url('profile'))
+                ->with('errors', [
+                    'email' =>
+                        'Doğrulama kodu hatalı. '
+                        . (5 - $attempts)
+                        . ' deneme hakkınız kaldı.',
+                ]);
+        }
+
+        $newEmail = strtolower(
+            trim((string) $user['pending_email'])
+        );
+
+        /*
+        * Kod gönderildikten sonra başka bir hesap
+        * bu adresi kullanmaya başlamış olabilir.
+        * Son kez kontrol ediyoruz.
+        */
+        $existingUser = $userModel
+            ->where('email', $newEmail)
+            ->where('id !=', $userId)
+            ->first();
+
+        if ($existingUser) {
+            $userModel
+                ->skipValidation(true)
+                ->update($userId, [
+                    'pending_email' => null,
+                    'pending_email_verification_token' => null,
+                    'pending_email_verification_expires_at' => null,
+                    'pending_email_verification_attempts' => 0,
+                    'pending_email_verification_sent_at' => null,
+                ]);
+
+            return redirect()
+                ->to(site_url('profile'))
+                ->with('errors', [
+                    'email' => 'Bu e-posta adresi artık başka bir hesap tarafından kullanılıyor.',
+                ]);
+        }
+
+        /*
+        * Artık yeni e-posta doğrulandı.
+        * Gerçek email alanını değiştiriyoruz.
+        */
+        try {
+            $updated = $userModel
+                ->skipValidation(true)
+                ->update($userId, [
+                    'email' => $newEmail,
+
+                    /*
+                    * Yeni adres şu anda doğrulandığı için
+                    * doğrulama zamanını yeniliyoruz.
+                    */
+                    'email_verified_at' => date('Y-m-d H:i:s'),
+
+                    /*
+                    * Eski password reset tokenı varsa
+                    * güvenlik için geçersiz kıl.
+                    */
+                    'password_reset_token' => null,
+                    'password_reset_expires_at' => null,
+
+                    /*
+                    * Bekleyen değişiklik tamamlandı.
+                    */
+                    'pending_email' => null,
+                    'pending_email_verification_token' => null,
+                    'pending_email_verification_expires_at' => null,
+                    'pending_email_verification_attempts' => 0,
+                    'pending_email_verification_sent_at' => null,
+                ]);
+        } catch (\Throwable $e) {
+            log_message(
+                'error',
+                'E-posta değişikliği kaydedilemedi. User ID: '
+                . $userId
+                . ' Error: '
+                . $e->getMessage()
+            );
+
+            return redirect()
+                ->to(site_url('profile'))
+                ->with('errors', [
+                    'email' => 'E-posta adresi şu anda değiştirilemedi.',
+                ]);
+        }
+
+        if (! $updated) {
+            return redirect()
+                ->to(site_url('profile'))
+                ->with('errors', [
+                    'email' => 'E-posta adresi değiştirilemedi.',
+                ]);
+        }
+
+        /*
+        * Session'daki e-posta da eski kalmasın.
+        */
+        session()->set(
+            'email',
+            $newEmail
+        );
+
+        return redirect()
+            ->to(site_url('profile'))
+            ->with(
+                'success',
+                'E-posta adresiniz başarıyla değiştirildi.'
+            );
+    }
+
+    private function sendEmailChangeCode(
+        array $user,
+        string $newEmail,
+        string $verificationCode
+    ): bool {
+        $email = service('email');
+
+        $email->setTo($newEmail);
+
+        $email->setSubject(
+            'Project Redemption - E-posta Değişikliği'
+        );
+
+        $email->setMailType('html');
+
+        $username = esc(
+            (string) ($user['username'] ?? '')
+        );
+
+        $code = esc($verificationCode);
+
+        $email->setMessage('
+            <h2>Project Redemption</h2>
+
+            <p>
+                Merhaba ' . $username . ',
+            </p>
+
+            <p>
+                Project Redemption hesabınızın
+                e-posta adresini değiştirmek için
+                aşağıdaki 6 haneli doğrulama kodunu
+                kullanın:
+            </p>
+
+            <p
+                style="
+                    font-size: 32px;
+                    font-weight: 700;
+                    letter-spacing: 8px;
+                    margin: 24px 0;
+                "
+            >
+                ' . $code . '
+            </p>
+
+            <p>
+                Bu kod 10 dakika boyunca geçerlidir.
+            </p>
+
+            <p>
+                Bu işlemi siz başlatmadıysanız
+                bu e-postayı görmezden gelebilirsiniz.
+                Hesabınızın mevcut e-posta adresi
+                değiştirilmemiştir.
+            </p>
+        ');
+
+        if ($email->send(false)) {
+            return true;
+        }
+
+        log_message(
+            'error',
+            'E-posta değişikliği doğrulama kodu gönderilemedi: '
+            . $email->printDebugger([])
+        );
+
+        return false;
+    }
+    public function update()
+    {
+        $userId = (int) session()->get('user_id');
+        $theme = (string) $this->request->getPost('theme');
+
+        $rules = [
+            'theme' => 'required|in_list[light,dark,system]',
+        ];
+
+        if (! $this->validateData(
+            ['theme' => $theme],
+            $rules
+        )) {
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with(
+                    'errors',
+                    $this->validator->getErrors()
+                );
+        }
+
+        $notifications =
+            $this->request->getPost('notifications_enabled') === '1'
+                ? 1
+                : 0;
+
+        (new UserModel())
+            ->skipValidation(true)
+            ->update($userId, [
+                'theme' => $theme,
+                'language' => 'tr',
+                'notifications_enabled' => $notifications,
+            ]);
+
+        session()->set([
+            'theme' => $theme,
+            'notifications_enabled' => $notifications,
+        ]);
+
+        return redirect()
+            ->to(site_url('profile'))
+            ->with(
+                'success',
+                'Profil ayarları güncellendi.'
+            );
     }
 
     public function export(string $format)

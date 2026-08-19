@@ -16,12 +16,23 @@ class UserModel extends Model
         'bio',
         'profile_url',
         'experience_points',
+
         'email',
+
+        // E-posta değiştirme işlemi için geçici alanlar
+        'pending_email',
+        'pending_email_verification_token',
+        'pending_email_verification_expires_at',
+        'pending_email_verification_attempts',
+        'pending_email_verification_sent_at',
+
+        // Kayıt sırasında kullanılan e-posta doğrulama alanları
         'email_verified_at',
         'email_verification_token',
         'email_verification_expires_at',
         'email_verification_attempts',
         'email_verification_sent_at',
+
         'password_hash',
         'password_reset_token',
         'password_reset_expires_at',

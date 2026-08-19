@@ -29,13 +29,13 @@
     ) ?>" maxlength="100" required>
 
     <label style="display:flex; gap:8px; align-items:center; font-weight:normal">
-        <input type="checkbox" name="is_public" value="1" <?= old(
-            "is_public",
-            (string) $note["is_public"],
+        <input type="checkbox" name="is_private" value="1" <?= old(
+            "is_private",
+            (string) ((int) $note["is_public"] === 0 ? 1 : 0),
         ) === "1"
             ? "checked"
             : "" ?>>
-        Bu not public olsun ve diğer kullanıcılar görebilsin
+        Bu not özel olsun; yalnızca ben göreyim
     </label>
 
     <div style="display:flex; gap:8px; margin-top:22px">

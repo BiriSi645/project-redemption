@@ -181,15 +181,22 @@
         }
     });
     function pollDelay() {
+        // WebSocket bağlıysa sürekli oyun state'i sorgulamak istemiyoruz.
+        // Ancak odadaki presence bilgisinin canlı kalması gerekiyor.
+        // Bu nedenle 10 saniyede bir hafif heartbeat/version isteği yapılır.
+        if (realtimeConnected) return 10000;
+
         if (document.hidden) return 8000;
         if (room.status === 'waiting') return 1500;
 
         return Math.min(750 * 2 ** failures, 10000);
     }
+
+
     function schedulePoll(immediate = false) {
         clearTimeout(pollTimer);
 
-        if (room.status === 'completed' || realtimeConnected) {
+        if (room.status === 'completed') {
             return;
         }
 
@@ -246,6 +253,7 @@
         clearTimeout(pollTimer);
 
         loadState();
+        schedulePoll();
     });
     document.addEventListener('project:realtime-disconnected', () => {
         realtimeConnected = false;

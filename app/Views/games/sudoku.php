@@ -1,20 +1,20 @@
 <?= $this->extend("layouts/main") ?>
 <?= $this->section("content") ?>
+
 <style>
     .sudoku-message.lose {
         background: #fee2e2 !important;
-        color: #991b1b !important
+        color: #991b1b !important;
     }
 
     html[data-theme="dark"] .sudoku-message.lose {
         background: #450a0a !important;
-        color: #fecaca !important
+        color: #fecaca !important;
     }
-</style>
-<style>
+
     .game-page {
         max-width: 1050px;
-        margin: 0 auto
+        margin: 0 auto;
     }
 
     .game-titlebar {
@@ -22,23 +22,23 @@
         align-items: flex-start;
         justify-content: space-between;
         gap: 14px;
-        margin-bottom: 18px
+        margin-bottom: 18px;
     }
 
     .game-titlebar h1 {
-        margin: 0 0 6px
+        margin: 0 0 6px;
     }
 
     .game-titlebar p {
         margin: 0;
-        color: #6b7280
+        color: #6b7280;
     }
 
     .game-layout {
         display: grid;
         grid-template-columns: minmax(0, 650px) minmax(240px, 1fr);
         align-items: start;
-        gap: 18px
+        gap: 18px;
     }
 
     .sudoku-toolbar {
@@ -51,13 +51,13 @@
         margin-bottom: 13px;
         border: 1px solid #e5e7eb;
         border-radius: 12px;
-        background: #f8fafc
+        background: #f8fafc;
     }
 
     .sudoku-toolbar label {
         display: block;
         margin: 0 0 5px;
-        font-size: 12px
+        font-size: 12px;
     }
 
     .sudoku-toolbar select {
@@ -66,12 +66,12 @@
         border: 1px solid #d1d5db;
         border-radius: 8px;
         background: #fff;
-        font: inherit
+        font: inherit;
     }
 
     .sudoku-stats {
         display: flex;
-        gap: 8px
+        gap: 8px;
     }
 
     .sudoku-stat {
@@ -79,17 +79,17 @@
         padding: 7px 10px;
         border-radius: 8px;
         background: #fff;
-        text-align: center
+        text-align: center;
     }
 
     .sudoku-stat span {
         display: block;
         color: #6b7280;
-        font-size: 11px
+        font-size: 11px;
     }
 
     .sudoku-stat strong {
-        font-size: 18px
+        font-size: 18px;
     }
 
     .sudoku-board {
@@ -99,7 +99,7 @@
         margin: 0 auto;
         border: 3px solid #1f2937;
         background: #1f2937;
-        gap: 1px
+        gap: 1px;
     }
 
     .sudoku-cell {
@@ -111,43 +111,43 @@
         background: #fff;
         color: #1d4ed8;
         font: 700 clamp(17px, 4vw, 27px)/1 Arial;
-        cursor: pointer
+        cursor: pointer;
     }
 
     .sudoku-cell:nth-child(3n):not(:nth-child(9n)) {
-        border-right: 2px solid #1f2937
+        border-right: 2px solid #1f2937;
     }
 
     .sudoku-cell:nth-child(n+19):nth-child(-n+27),
     .sudoku-cell:nth-child(n+46):nth-child(-n+54) {
-        border-bottom: 2px solid #1f2937
+        border-bottom: 2px solid #1f2937;
     }
 
     .sudoku-cell.given {
         color: #111827;
         background: #f1f5f9;
-        cursor: default
+        cursor: default;
     }
 
     .sudoku-cell.selected {
-        background: #bfdbfe
+        background: #bfdbfe;
     }
 
     .sudoku-cell.related:not(.selected) {
-        background: #eff6ff
+        background: #eff6ff;
     }
 
     .sudoku-cell.wrong {
         background: #fecaca;
-        color: #b91c1c
+        color: #b91c1c;
     }
 
     .sudoku-pad {
         display: grid;
-        grid-template-columns: repeat(9, 1fr);
+        grid-template-columns: repeat(auto-fit, minmax(40px, 1fr));
         gap: 6px;
         width: min(100%, 560px);
-        margin: 13px auto 0
+        margin: 13px auto 0;
     }
 
     .sudoku-pad button {
@@ -158,7 +158,11 @@
         background: #eff6ff;
         color: #1d4ed8;
         font: 700 19px Arial;
-        cursor: pointer
+        cursor: pointer;
+    }
+
+    .sudoku-pad button[hidden] {
+        display: none;
     }
 
     .sudoku-message {
@@ -168,12 +172,12 @@
         border-radius: 10px;
         background: #f3f4f6;
         color: #374151;
-        text-align: center
+        text-align: center;
     }
 
     .sudoku-message.win {
         background: #dcfce7;
-        color: #166534
+        color: #166534;
     }
 
     .score-save-status {
@@ -181,7 +185,7 @@
         margin: 7px 0 0;
         color: #6b7280;
         text-align: center;
-        font-size: 12px
+        font-size: 12px;
     }
 
     .game-leaderboard {
@@ -190,29 +194,29 @@
         border-radius: 15px;
         background: #fff;
         position: sticky;
-        top: 18px
+        top: 18px;
     }
 
     .leaderboard-head {
         display: flex;
         align-items: center;
         gap: 10px;
-        margin-bottom: 15px
+        margin-bottom: 15px;
     }
 
-    .leaderboard-head>span {
-        font-size: 30px
+    .leaderboard-head > span {
+        font-size: 30px;
     }
 
     .leaderboard-head h2 {
         margin: 0;
-        font-size: 19px
+        font-size: 19px;
     }
 
     .leaderboard-head p {
         margin: 3px 0 0;
         color: #6b7280;
-        font-size: 12px
+        font-size: 12px;
     }
 
     .leaderboard-list {
@@ -220,7 +224,7 @@
         gap: 8px;
         padding: 0;
         margin: 0;
-        list-style: none
+        list-style: none;
     }
 
     .leaderboard-list li {
@@ -230,31 +234,31 @@
         gap: 7px;
         padding: 11px 9px;
         border-radius: 9px;
-        background: #f8fafc
+        background: #f8fafc;
     }
 
     .leaderboard-player {
         overflow: hidden;
         text-overflow: ellipsis;
-        white-space: nowrap
+        white-space: nowrap;
     }
 
     .leaderboard-empty {
         display: block !important;
         color: #6b7280;
-        text-align: center
+        text-align: center;
     }
 
     .leaderboard-note {
         margin: 13px 0 0;
         color: #6b7280;
         font-size: 11px;
-        line-height: 1.4
+        line-height: 1.4;
     }
 
     html[data-theme="dark"] .sudoku-toolbar {
         background: #0f172a;
-        border-color: #334155
+        border-color: #334155;
     }
 
     html[data-theme="dark"] .sudoku-stat,
@@ -262,117 +266,38 @@
     html[data-theme="dark"] .leaderboard-list li {
         background: #1e293b;
         border-color: #475569;
-        color: #e2e8f0
-    }
-
-    html[data-theme="dark"] .sudoku-cell {
-        background: #1e293b;
-        color: #93c5fd
-    }
-
-    html[data-theme="dark"] .sudoku-cell.given {
-        background: #334155;
-        color: #f8fafc
-    }
-
-    html[data-theme="dark"] .sudoku-cell.selected {
-        background: #1d4ed8
-    }
-
-    html[data-theme="dark"] .sudoku-cell.related:not(.selected) {
-        background: #172554
-    }
-
-    html[data-theme="dark"] .sudoku-message {
-        background: #0f172a;
-        color: #cbd5e1
-    }
-
-    @media(max-width:900px) {
-        .game-layout {
-            grid-template-columns: 1fr
-        }
-
-        .game-leaderboard {
-            position: static
-        }
-    }
-
-    @media(max-width:650px) {
-        .game-titlebar {
-            flex-direction: column
-        }
-
-        .game-titlebar .button {
-            width: 100%;
-            text-align: center
-        }
-
-        .sudoku-toolbar {
-            align-items: stretch;
-            flex-direction: column
-        }
-
-        .sudoku-toolbar select {
-            width: 100%
-        }
-
-        .sudoku-stats {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr)
-        }
-
-        .sudoku-stat {
-            min-width: 0
-        }
-
-        .sudoku-pad {
-            gap: 3px
-        }
-
-        .sudoku-pad button {
-            min-height: 40px
-        }
-    }
-</style>
-<style>
-    .sudoku-pad {
-        grid-template-columns: repeat(auto-fit, minmax(40px, 1fr))
-    }
-
-    .sudoku-pad button[hidden] {
-        display: none
+        color: #e2e8f0;
     }
 
     html[data-theme="dark"] .sudoku-board {
         border-color: #94a3b8;
-        background: #64748b
+        background: #64748b;
     }
 
     html[data-theme="dark"] .sudoku-cell {
         background: #0f172a;
         color: #93c5fd;
-        box-shadow: inset 0 0 0 1px #334155
+        box-shadow: inset 0 0 0 1px #334155;
     }
 
     html[data-theme="dark"] .sudoku-cell:nth-child(3n):not(:nth-child(9n)) {
-        border-right-color: #94a3b8
+        border-right-color: #94a3b8;
     }
 
     html[data-theme="dark"] .sudoku-cell:nth-child(n+19):nth-child(-n+27),
     html[data-theme="dark"] .sudoku-cell:nth-child(n+46):nth-child(-n+54) {
-        border-bottom-color: #94a3b8
+        border-bottom-color: #94a3b8;
     }
 
     html[data-theme="dark"] .sudoku-cell.given {
         background: #334155;
         color: #f8fafc;
-        box-shadow: inset 0 0 0 1px #64748b
+        box-shadow: inset 0 0 0 1px #64748b;
     }
 
     html[data-theme="dark"] .sudoku-cell.related:not(.selected) {
         background: #172554;
-        box-shadow: inset 0 0 0 1px #3b82f6
+        box-shadow: inset 0 0 0 1px #3b82f6;
     }
 
     html[data-theme="dark"] .sudoku-cell.selected {
@@ -380,83 +305,240 @@
         color: #fff;
         outline: 3px solid #bfdbfe;
         outline-offset: -3px;
-        box-shadow: none
+        box-shadow: none;
     }
 
     html[data-theme="dark"] .sudoku-cell.wrong {
         background: #7f1d1d;
         color: #fee2e2;
         outline: 3px solid #f87171;
-        outline-offset: -3px
+        outline-offset: -3px;
     }
 
     html[data-theme="dark"] .sudoku-pad button {
         border-color: #475569;
         background: #1e293b;
-        color: #bfdbfe
+        color: #bfdbfe;
     }
 
     html[data-theme="dark"] .sudoku-pad button:hover {
         border-color: #93c5fd;
-        background: #334155
+        background: #334155;
+    }
+
+    html[data-theme="dark"] .sudoku-message {
+        background: #0f172a;
+        color: #cbd5e1;
+    }
+
+    @media(max-width: 900px) {
+        .game-layout {
+            grid-template-columns: 1fr;
+        }
+
+        .game-leaderboard {
+            position: static;
+        }
+    }
+
+    @media(max-width: 650px) {
+        .game-titlebar {
+            flex-direction: column;
+        }
+
+        .game-titlebar .button {
+            width: 100%;
+            text-align: center;
+        }
+
+        .sudoku-toolbar {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .sudoku-toolbar select {
+            width: 100%;
+        }
+
+        .sudoku-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+        }
+
+        .sudoku-stat {
+            min-width: 0;
+        }
+
+        .sudoku-pad {
+            gap: 3px;
+        }
+
+        .sudoku-pad button {
+            min-height: 40px;
+        }
     }
 </style>
-<div class="game-page" id="sudoku-game" data-user-id="<?= (int) session()->get(
-    "user_id",
-) ?>" data-score-url="<?= site_url(
-    "games/score",
-) ?>" data-csrf-name="<?= csrf_token() ?>" data-csrf-hash="<?= csrf_hash() ?>">
+
+<div
+    class="game-page"
+    id="sudoku-game"
+    data-user-id="<?= (int) session()->get("user_id") ?>"
+    data-score-url="<?= site_url("games/score") ?>"
+    data-puzzle-url="<?= site_url("games/sudoku/puzzle") ?>"
+    data-csrf-name="<?= csrf_token() ?>"
+    data-csrf-hash="<?= csrf_hash() ?>"
+>
     <header class="game-titlebar">
         <div>
             <h1>🔢 Sudoku</h1>
-            <p>Her satır, sütun ve kutuya 1–9 sayılarını birer kez yerleştirin.</p>
-        </div><a class="button secondary" href="<?= site_url(
-        "games",
-    ) ?>">Oyunlara dön</a>
+
+            <p>
+                Her satır, sütun ve kutuya 1–9 sayılarını
+                birer kez yerleştirin.
+            </p>
+        </div>
+
+        <a
+            class="button secondary"
+            href="<?= site_url("games") ?>"
+        >
+            Oyunlara dön
+        </a>
     </header>
+
     <div class="game-layout">
         <div>
             <div class="sudoku-toolbar">
-                <div><label for="sudoku-difficulty">Zorluk</label><select id="sudoku-difficulty">
-                        <option value="beginner">Başlangıç</option>
-                        <option value="medium">Orta</option>
-                        <option value="expert">Zor</option>
-                    </select></div>
+                <div>
+                    <label for="sudoku-difficulty">
+                        Zorluk
+                    </label>
+
+                    <select id="sudoku-difficulty">
+                        <option value="beginner">
+                            Başlangıç
+                        </option>
+
+                        <option value="medium">
+                            Orta
+                        </option>
+
+                        <option value="expert">
+                            Zor
+                        </option>
+                    </select>
+                </div>
+
                 <div class="sudoku-stats">
-                    <div class="sudoku-stat"><span>Süre</span><strong id="sudoku-time">0:00</strong>
+                    <div class="sudoku-stat">
+                        <span>Süre</span>
+                        <strong id="sudoku-time">
+                            0:00
+                        </strong>
                     </div>
-                    <div class="sudoku-stat"><span>Hata</span><strong id="sudoku-errors">0 /
-                            3</strong></div>
-                    <div class="sudoku-stat"><span>En iyi</span><strong id="sudoku-best">—</strong>
+
+                    <div class="sudoku-stat">
+                        <span>Hata</span>
+                        <strong id="sudoku-errors">
+                            0 / 3
+                        </strong>
                     </div>
-                </div><button class="button" id="sudoku-restart" type="button">Yeni oyun</button>
+
+                    <div class="sudoku-stat">
+                        <span>En iyi</span>
+                        <strong id="sudoku-best">
+                            —
+                        </strong>
+                    </div>
+                </div>
+
+                <button
+                    class="button"
+                    id="sudoku-restart"
+                    type="button"
+                >
+                    Yeni oyun
+                </button>
             </div>
-            <div class="sudoku-board" id="sudoku-board" role="grid" aria-label="Sudoku tahtası">
+
+            <div
+                class="sudoku-board"
+                id="sudoku-board"
+                role="grid"
+                aria-label="Sudoku tahtası"
+            ></div>
+
+            <div
+                class="sudoku-pad"
+                aria-label="Sayı tuşları"
+            >
+                <?php for ($number = 1; $number <= 9; $number++): ?>
+                    <button
+                        type="button"
+                        data-number="<?= $number ?>"
+                    >
+                        <?= $number ?>
+                    </button>
+                <?php endfor; ?>
             </div>
-            <div class="sudoku-pad" aria-label="Sayı tuşları"><?php for (
-            $number = 1;
-            $number <= 9;
-            $number++
-        ): ?><button type="button"
-                    data-number="<?= $number ?>"><?= $number ?></button><?php endfor; ?></div>
-            <div class="sudoku-message" id="sudoku-message" aria-live="polite">Bir boş hücre seçip
-                sayı girin.</div>
-            <p class="score-save-status" id="sudoku-score-status" aria-live="polite"></p>
-        </div><?= view("games/_leaderboard", [
-        "scores" => $leaderboards["beginner"],
-        "subtitle" => "Başlangıç seviyesi",
-        "elementId" => "sudoku-leaderboard",
-        "unit" => " sn",
-    ]) ?>
+
+            <div
+                class="sudoku-message"
+                id="sudoku-message"
+                aria-live="polite"
+            >
+                Bir boş hücre seçip sayı girin.
+            </div>
+
+            <p
+                class="score-save-status"
+                id="sudoku-score-status"
+                aria-live="polite"
+            ></p>
+        </div>
+
+        <?= view("games/_leaderboard", [
+            "scores" => $leaderboards["beginner"],
+            "subtitle" => "Başlangıç seviyesi",
+            "elementId" => "sudoku-leaderboard",
+            "unit" => " sn",
+        ]) ?>
     </div>
 </div>
-<script id="sudoku-score-data" type="application/json"><?= json_encode(
-        ["leaderboards" => $leaderboards, "personalBests" => $personalBests],
-        JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT,
-    ) ?></script>
-<script id="sudoku-puzzle-data" type="application/json"><?= json_encode(
-        $puzzles,
-        JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT,
-    ) ?></script>
-<script src="<?= base_url("js/sudoku-game.js") ?>"></script>
+
+<script
+    id="sudoku-score-data"
+    type="application/json"
+>
+<?= json_encode(
+    [
+        "leaderboards" => $leaderboards,
+        "personalBests" => $personalBests,
+    ],
+    JSON_HEX_TAG
+    | JSON_HEX_AMP
+    | JSON_HEX_APOS
+    | JSON_HEX_QUOT
+) ?>
+</script>
+
+<script
+    id="sudoku-puzzle-data"
+    type="application/json"
+>
+<?= json_encode(
+    $puzzles,
+    JSON_HEX_TAG
+    | JSON_HEX_AMP
+    | JSON_HEX_APOS
+    | JSON_HEX_QUOT
+) ?>
+</script>
+
+<script
+    src="<?= base_url("js/sudoku-game.js") ?>?v=<?= filemtime(
+        FCPATH . "js/sudoku-game.js"
+    ) ?>"
+></script>
+
 <?= $this->endSection() ?>

@@ -607,45 +607,83 @@ $unreadMessageCount = (new \App\Models\DirectConversationModel())->unreadCount(
         }
 
         .pagination {
-            display: flex;
-            justify-content: center;
-            flex-wrap: wrap;
-            gap: 6px;
-            padding: 24px 0 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 24px 0 0;
+    margin: 0;
+    list-style: none;
+}
+
+.pagination li {
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    border: 0;
+}
+
+.pagination li > a {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    min-width: 42px;
+    height: 42px;
+    padding: 0 14px;
+
+    border: 1px solid #d1d5db;
+    border-radius: 9px;
+
+    background: #e5e7eb;
+    color: #111827;
+
+    font-weight: 600;
+    line-height: 1;
+
+    text-decoration: none;
+
+    transition:
+        background .15s ease,
+        border-color .15s ease,
+        transform .15s ease;
+}
+
+        /* CodeIgniter First / Previous / Next / Last
+        yazılarını span içine koyuyor.
+        Span tekrar buton gibi görünmesin. */
+        .pagination li > a > span {
+            display: inline;
+            min-width: 0;
+            height: auto;
+            padding: 0;
             margin: 0;
-            list-style: none;
+
+            border: 0;
+            border-radius: 0;
+
+            background: transparent;
+            color: inherit;
+
+            line-height: inherit;
         }
 
-        .pagination li {
-            margin: 0;
-        }
-
-        .pagination a,
-        .pagination span {
-            display: grid;
-            min-width: 36px;
-            height: 36px;
-            padding: 0 10px;
-            place-items: center;
-            border-radius: 8px;
-            background: #e5e7eb;
-            color: #111827;
-            text-decoration: none;
-        }
-
-        .pagination a:hover {
+        .pagination li > a:hover {
             background: #d1d5db;
+            border-color: #9ca3af;
+            transform: translateY(-1px);
         }
 
-        .pagination .active a,
-        .pagination .active span {
+        .pagination li.active > a {
             background: #2563eb;
+            border-color: #2563eb;
             color: #fff;
         }
 
-        .pagination .disabled a,
-        .pagination .disabled span {
+        .pagination li.disabled > a {
             opacity: .45;
+            pointer-events: none;
         }
 
         input[type="text"],
@@ -965,9 +1003,26 @@ $unreadMessageCount = (new \App\Models\DirectConversationModel())->unreadCount(
             color: #c7d2fe;
         }
 
-        html[data-theme="dark"] .pagination a {
+        html[data-theme="dark"] .pagination li > a {
             background: #334155;
+            border-color: #475569;
             color: #e2e8f0;
+        }
+
+        html[data-theme="dark"] .pagination li > a > span {
+            background: transparent;
+            color: inherit;
+        }
+
+        html[data-theme="dark"] .pagination li > a:hover {
+            background: #475569;
+            border-color: #64748b;
+        }
+
+        html[data-theme="dark"] .pagination li.active > a {
+            background: #2563eb;
+            border-color: #3b82f6;
+            color: #fff;
         }
 
         html[data-theme="dark"] .calendar-toolbar,
@@ -1273,9 +1328,6 @@ $unreadMessageCount = (new \App\Models\DirectConversationModel())->unreadCount(
             </div>
 
             <div class="content">
-                <?php if ($success = session()->getFlashdata("success")): ?>
-                <div class="alert success"><?= esc($success) ?></div>
-                <?php endif; ?>
                 <?php if ($error = session()->getFlashdata("error")): ?>
                 <div class="alert error"><?= esc($error) ?></div>
                 <?php endif; ?>

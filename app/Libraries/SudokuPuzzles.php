@@ -31,9 +31,98 @@ final class SudokuPuzzles
         return isset(self::PUZZLES[$difficulty]);
     }
 
+    public static function random(string $difficulty): array
+    {
+        $data = self::get($difficulty);
+
+        // Sudoku simetrileri geçerli ve tek çözümlü yapıyı korur.
+        // Böylece sabit kaynak bulmacadan çok sayıda farklı tahta üretebiliriz.
+        do {
+            $digitMap = range(1, 9);
+            shuffle($digitMap);
+            $digitMap = array_combine(range(1, 9), $digitMap);
+
+            $rowOrder = self::axisOrder();
+            $columnOrder = self::axisOrder();
+            $transpose = (bool) random_int(0, 1);
+
+            $puzzle = self::transform(
+                $data['puzzle'],
+                $digitMap,
+                $rowOrder,
+                $columnOrder,
+                $transpose
+            );
+
+            $solution = self::transform(
+                $data['solution'],
+                $digitMap,
+                $rowOrder,
+                $columnOrder,
+                $transpose
+            );
+        } while ($puzzle === $data['puzzle']);
+
+        return [
+            'puzzle' => $puzzle,
+            'solution' => $solution,
+        ];
+    }
+
+    private static function axisOrder(): array
+    {
+        $groups = [0, 1, 2];
+        shuffle($groups);
+
+        $order = [];
+
+        foreach ($groups as $group) {
+            $inside = [0, 1, 2];
+            shuffle($inside);
+
+            foreach ($inside as $offset) {
+                $order[] = ($group * 3) + $offset;
+            }
+        }
+
+        return $order;
+    }
+
+    private static function transform(
+        string $grid,
+        array $digitMap,
+        array $rowOrder,
+        array $columnOrder,
+        bool $transpose
+    ): string {
+        $result = '';
+
+        for ($targetRow = 0; $targetRow < 9; $targetRow++) {
+            for ($targetColumn = 0; $targetColumn < 9; $targetColumn++) {
+                $sourceRow = $rowOrder[$targetRow];
+                $sourceColumn = $columnOrder[$targetColumn];
+
+                if ($transpose) {
+                    [$sourceRow, $sourceColumn] = [$sourceColumn, $sourceRow];
+                }
+
+                $value = $grid[($sourceRow * 9) + $sourceColumn];
+
+                $result .= $value === '0'
+                    ? '0'
+                    : (string) $digitMap[(int) $value];
+            }
+        }
+
+        return $result;
+    }
+
     public static function get(string $difficulty): array
     {
-        if (! self::has($difficulty)) throw new InvalidArgumentException('Geçersiz Sudoku zorluğu.');
+        if (! self::has($difficulty)) {
+            throw new InvalidArgumentException('Geçersiz Sudoku zorluğu.');
+        }
+
         return self::PUZZLES[$difficulty];
     }
 }
