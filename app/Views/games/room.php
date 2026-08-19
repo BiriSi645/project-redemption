@@ -2,7 +2,7 @@
 <?= $this->section("content") ?>
 <style>
     .room-page {
-        max-width: 980px;
+        max-width: 1100px;
         margin: 0 auto
     }
 
@@ -109,6 +109,23 @@
         gap: 2px
     }
 
+    .shared-board.snake {
+        display: block;
+        width: min(100%, 720px);
+        max-width: 720px;
+        padding: 8px;
+        border-radius: 14px;
+        background: #07140d;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08)
+    }
+
+    .shared-snake-canvas {
+        display: block;
+        width: 100%;
+        height: auto;
+        border-radius: 8px
+    }
+
     .shared-cell {
         display: grid;
         aspect-ratio: 1;
@@ -201,6 +218,38 @@
     .room-mode.active {
         background: #2563eb;
         color: #fff
+    }
+
+    .snake-room-controls {
+        display: grid;
+        grid-template-columns: repeat(3, 62px);
+        grid-template-rows: repeat(2, 54px);
+        justify-content: center;
+        max-width: 720px
+    }
+
+    .snake-room-controls button {
+        padding: 0;
+        font-size: 24px
+    }
+
+    .snake-room-controls [data-direction="up"] {
+        grid-column: 2
+    }
+
+    .snake-room-controls [data-direction="left"] {
+        grid-column: 1;
+        grid-row: 2
+    }
+
+    .snake-room-controls [data-direction="down"] {
+        grid-column: 2;
+        grid-row: 2
+    }
+
+    .snake-room-controls [data-direction="right"] {
+        grid-column: 3;
+        grid-row: 2
     }
 
     .room-legend {
@@ -435,13 +484,19 @@
     "games/room/" . $room["code"] . "/move",
 ) ?>" data-leave-url="<?= site_url(
     "games/room/" . $room["code"] . "/leave",
-) ?>" data-csrf-name="<?= csrf_token() ?>" data-csrf-hash="<?= csrf_hash() ?>">
+) ?>" data-csrf-name="<?= csrf_token() ?>" data-csrf-hash="<?= csrf_hash() ?>"
+    data-realtime-token-url="<?= site_url("system/realtime-token") ?>"
+    data-snake-ws-url="<?= esc((string) (getenv("SNAKE_WEBSOCKET_URL") ?: "")) ?>">
     <header class="room-head">
         <div>
-            <h1><?= $room["game"] === "sudoku"
-        ? "🔢 Sudoku"
-        : "💣 Mayın Tarlası" ?> · Birlikte</h1>
-            <p>Hamleleriniz iki ekranda otomatik olarak eşitlenir.</p>
+            <h1><?= match ($room["game"]) {
+        "sudoku" => "🔢 Sudoku",
+        "snake" => "🐍 Yılan Yarışı",
+        default => "💣 Mayın Tarlası",
+    } ?> · Birlikte</h1>
+            <p><?= $room["game"] === "snake"
+        ? "Tek yeme yarışın; çarpmadan 15 parçaya ulaşmaya çalışın."
+        : "Hamleleriniz iki ekranda otomatik olarak eşitlenir." ?></p>
         </div>
         <form id="leave-room-form" method="post" action="<?= site_url(
      "games/room/" . $room["code"] . "/leave",
@@ -488,9 +543,11 @@
 ) ?></strong></div>
     </div>
     <div class="room-status" id="room-status" aria-live="polite"></div>
-    <div class="shared-board <?= $room["game"] === "sudoku"
-        ? "sudoku"
-        : "mines" ?>" id="shared-board" role="grid"></div>
+    <div class="shared-board <?= esc(match ($room["game"]) {
+        "sudoku" => "sudoku",
+        "snake" => "snake",
+        default => "mines",
+    }) ?>" id="shared-board" role="grid"></div>
     <?php if (
         $room["game"] === "sudoku"
     ): ?><div class="room-controls number-pad" id="room-controls"><?php for (
@@ -498,6 +555,16 @@
     $i <= 9;
     $i++
 ): ?><button type="button" data-number="<?= $i ?>"><?= $i ?></button><?php endfor; ?></div>
+    <?php elseif ($room["game"] === "snake"): ?>
+        <div class="room-controls snake-room-controls" id="room-controls" aria-label="Yılan yön kontrolleri">
+            <button class="room-mode" type="button" data-direction="up" aria-label="Yukarı">↑</button>
+            <button class="room-mode" type="button" data-direction="left" aria-label="Sol">←</button>
+            <button class="room-mode" type="button" data-direction="down" aria-label="Aşağı">↓</button>
+            <button class="room-mode" type="button" data-direction="right" aria-label="Sağ">→</button>
+        </div>
+        <p style="margin:0 auto 12px;text-align:center;color:#6b7280;font-size:13px">
+            Klavye: yön tuşları veya WASD
+        </p>
     <?php else: ?><div class="room-controls" id="room-controls"><button class="room-mode active"
             type="button" data-mode="reveal">🔎 Hücre aç</button><button class="room-mode"
             type="button" data-mode="flag">🚩 Bayrak koy</button></div><?php endif; ?>
@@ -511,6 +578,11 @@
         $room,
         JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT,
     ) ?></script>
+<?php if ($room["game"] === "snake"): ?>
+<script src="<?= base_url("js/snake-live.js") ?>?v=<?= filemtime(
+    FCPATH . "js/snake-live.js",
+) ?>"></script>
+<?php endif; ?>
 <script src="<?= base_url("js/shared-game.js") ?>?v=<?= filemtime(
     FCPATH . "js/shared-game.js",
 ) ?>"></script>

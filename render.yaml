@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: project-redemption-snake
+    runtime: node
+    region: frankfurt
+    plan: free
+    rootDir: snake-server
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        sync: false
+      - key: DB_DATABASE
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: REALTIME_SECRET
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: DB_SSL
+        value: "true"
+      - key: SNAKE_STEP_MS
+        value: "180"
+      - key: SNAKE_GRID
+        value: "30"
+      - key: SNAKE_TARGET_LENGTH
+        value: "15"

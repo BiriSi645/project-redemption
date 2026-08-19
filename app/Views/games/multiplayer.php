@@ -92,7 +92,7 @@
 <div class="multi-page">
     <header class="multi-head">
         <h1>👥 Birlikte Oyna</h1>
-        <p>Sudoku veya Mayın Tarlası için oda oluşturun; kodu arkadaşınızla paylaşın.</p>
+        <p>Sudoku, Mayın Tarlası veya Yılan Yarışı için oda oluşturun; kodu arkadaşınızla paylaşın.</p>
     </header>
     <?php if (session("error")): ?><div class="alert error"><?= esc(
     session("error"),
@@ -105,12 +105,15 @@
                 for="multi-game">Oyun</label><select id="multi-game" name="game">
                 <option value="sudoku">Sudoku</option>
                 <option value="minesweeper">Mayın Tarlası</option>
+                <option value="snake">Yılan Yarışı</option>
             </select><label for="multi-difficulty">Zorluk</label><select id="multi-difficulty"
                 name="difficulty">
                 <option value="beginner">Başlangıç</option>
                 <option value="medium">Orta</option>
                 <option value="expert">Zor</option>
-            </select><button class="button" type="submit">Oda oluştur</button>
+            </select>
+            <p style="margin:8px 0 0;font-size:13px">Yılan Yarışı seçildiğinde zorluk ayarı kullanılmaz.</p>
+            <button class="button" type="submit">Oda oluştur</button>
         </form>
         <form class="multi-card" method="post" action="<?= site_url(
         "games/multiplayer/join",
