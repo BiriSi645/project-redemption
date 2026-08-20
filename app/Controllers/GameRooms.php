@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Libraries\GameRoomService;
 use App\Libraries\FourPlayerGameService;
+use App\Libraries\RealtimePublisher;
 use App\Models\GameRoomModel;
 use App\Models\NotificationModel;
 use App\Models\UserModel;
@@ -23,6 +24,7 @@ class GameRooms extends BaseController
             $room = in_array($game, ['okey101', 'monopoly'], true)
                 ? (new FourPlayerGameService())->create((int) session()->get('user_id'), $game, $this->request->getPost())
                 : (new GameRoomService())->create((int) session()->get('user_id'), $game, (string) $this->request->getPost('difficulty'));
+            if (in_array($game, ['okey101', 'monopoly'], true)) $this->publishFourPlayerRoom($room);
             return redirect()->to(site_url('games/room/' . $room['code']));
         } catch (RuntimeException $e) {
             return redirect()->back()->withInput()->with('error', $e->getMessage());
@@ -37,6 +39,7 @@ class GameRooms extends BaseController
             $room = $fourPlayer->isFourPlayerGame($code)
                 ? $fourPlayer->join((int) session()->get('user_id'), $code)
                 : (new GameRoomService())->join((int) session()->get('user_id'), $code);
+            if (in_array($room['game'] ?? '', ['okey101', 'monopoly'], true)) $this->publishFourPlayerRoom($room);
             return redirect()->to(site_url('games/room/' . $room['code']));
         } catch (RuntimeException $e) {
             return redirect()->back()->withInput()->with('error', $e->getMessage());
@@ -73,7 +76,7 @@ class GameRooms extends BaseController
     public function addBot(string $code)
     {
         try {
-            (new FourPlayerGameService())->addBot($code, (int) session()->get('user_id'), (string) $this->request->getPost('difficulty'));
+            $room=(new FourPlayerGameService())->addBot($code, (int) session()->get('user_id'), (string) $this->request->getPost('difficulty'));$this->publishFourPlayerRoom($room);
             return redirect()->back()->with('success', 'Bot odaya eklendi.');
         } catch (RuntimeException $e) {
             return redirect()->back()->with('error', $e->getMessage());
@@ -83,7 +86,7 @@ class GameRooms extends BaseController
     public function removeBot(string $code, int $seat)
     {
         try {
-            (new FourPlayerGameService())->removeBot($code, (int) session()->get('user_id'), $seat);
+            $room=(new FourPlayerGameService())->removeBot($code, (int) session()->get('user_id'), $seat);$this->publishFourPlayerRoom($room);
             return redirect()->back()->with('success', 'Bot odadan kaldırıldı.');
         } catch (RuntimeException $e) {
             return redirect()->back()->with('error', $e->getMessage());
@@ -92,7 +95,7 @@ class GameRooms extends BaseController
 
     public function startFourPlayer(string $code)
     {
-        try {(new FourPlayerGameService())->start($code,(int)session()->get('user_id'));return redirect()->back();}
+        try {$room=(new FourPlayerGameService())->start($code,(int)session()->get('user_id'));$this->publishFourPlayerRoom($room);return redirect()->back();}
         catch(RuntimeException $e){return redirect()->back()->with('error',$e->getMessage());}
     }
 
@@ -104,13 +107,13 @@ class GameRooms extends BaseController
 
     public function fourPlayerAction(string $code)
     {
-        try{$input=$this->request->getJSON(true)?:$this->request->getPost();return $this->response->setJSON(['success'=>true,'room'=>(new FourPlayerGameService())->action($code,(int)session()->get('user_id'),$input),'csrfHash'=>csrf_hash()]);}
+        try{$input=$this->request->getJSON(true)?:$this->request->getPost();$room=(new FourPlayerGameService())->action($code,(int)session()->get('user_id'),$input);$this->publishFourPlayerRoom($room);return $this->response->setJSON(['success'=>true,'room'=>$room,'csrfHash'=>csrf_hash()]);}
         catch(RuntimeException $e){return $this->response->setStatusCode(422)->setJSON(['success'=>false,'message'=>$e->getMessage(),'csrfHash'=>csrf_hash()]);}
     }
 
     public function fourPlayerRematch(string $code)
     {
-        try{return $this->response->setJSON(['success'=>true,'room'=>(new FourPlayerGameService())->rematch($code,(int)session()->get('user_id')),'csrfHash'=>csrf_hash()]);}
+        try{$room=(new FourPlayerGameService())->rematch($code,(int)session()->get('user_id'));$this->publishFourPlayerRoom($room);return $this->response->setJSON(['success'=>true,'room'=>$room,'csrfHash'=>csrf_hash()]);}
         catch(RuntimeException $e){return $this->response->setStatusCode(422)->setJSON(['success'=>false,'message'=>$e->getMessage(),'csrfHash'=>csrf_hash()]);}
     }
 
@@ -235,5 +238,11 @@ class GameRooms extends BaseController
             return $this->response->setJSON(['success' => true, 'csrfHash' => csrf_hash()]);
         }
         return redirect()->to(site_url('games/multiplayer'));
+    }
+
+    private function publishFourPlayerRoom(array $room): void
+    {
+        $userIds=array_values(array_filter(array_map(static fn(array $player):int=>(int)($player['userId']??0),$room['players']??[])));
+        (new RealtimePublisher())->user($userIds,'game-room',['roomCode'=>$room['code'],'game'=>$room['game'],'status'=>$room['status'],'version'=>(int)$room['version']]);
     }
 }

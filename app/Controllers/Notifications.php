@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Libraries\GameRoomService;
 use App\Libraries\FourPlayerGameService;
+use App\Libraries\RealtimePublisher;
 use App\Libraries\TaskReminderService;
 use App\Libraries\NotificationActionPolicy;
 use App\Models\GameRoomModel;
@@ -81,7 +82,9 @@ class Notifications extends BaseController
             }
             try {
                 if (in_array($room['game'], ['okey101', 'monopoly'], true)) {
-                    (new FourPlayerGameService())->join((int) session()->get('user_id'), $room['code']);
+                    $joinedRoom=(new FourPlayerGameService())->join((int) session()->get('user_id'), $room['code']);
+                    $userIds=array_values(array_filter(array_map(static fn(array $player):int=>(int)($player['userId']??0),$joinedRoom['players']??[])));
+                    (new RealtimePublisher())->user($userIds,'game-room',['roomCode'=>$joinedRoom['code'],'game'=>$joinedRoom['game'],'status'=>$joinedRoom['status'],'version'=>(int)$joinedRoom['version']]);
                 } else {
                     (new GameRoomService())->join((int) session()->get('user_id'), $room['code']);
                 }
