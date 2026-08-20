@@ -22,6 +22,15 @@ $unreadMessageCount = (new \App\Models\DirectConversationModel())->unreadCount(
     <title><?= esc($title ?? "Project Redemption") ?></title>
     <link rel="stylesheet" href="<?= base_url("css/messenger-dock.css") ?>">
     <style>
+        @media (min-width: 721px) {
+            .messenger-dock {
+                right: 18px;
+                left: auto;
+                flex-direction: row-reverse;
+            }
+        }
+    </style>
+    <style>
         * {
             box-sizing: border-box;
         }
