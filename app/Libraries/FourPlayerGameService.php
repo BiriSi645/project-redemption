@@ -194,6 +194,12 @@ final class FourPlayerGameService
         }catch(\Throwable $e){$db->transRollback();throw $e;}
     }
 
+    public function rematch(string $code,int $userId):array
+    {
+        $db=db_connect();$db->transBegin();
+        try{$room=$db->query('SELECT * FROM game_rooms WHERE code = ? FOR UPDATE',[strtoupper($code)])->getRowArray();if(!$room||$room['status']!=='completed'||!in_array($room['game'],self::GAMES,true))throw new RuntimeException('Bu oyun yeniden başlatılamaz.');$players=(new GameRoomPlayerModel())->forRoom((int)$room['id']);$seat=null;foreach($players as $p)if((int)($p['user_id']??0)===$userId)$seat=(int)$p['seat_index'];if($seat===null)throw new RuntimeException('Bu odada değilsiniz.');$state=json_decode($room['state'],true)?:[];$ready=$state['rematchReady']??[];$ready[$seat]=true;$all=true;foreach($players as $p)if($p['player_type']==='human'&&empty($ready[(int)$p['seat_index']]))$all=false;if($all){$settings=json_decode((string)$room['settings'],true)?:[];$state=$room['game']==='okey101'?(new Okey101Engine())->create($players):(new MonopolyEngine())->create($players,$settings);$status='playing';}else{$state['rematchReady']=$ready;$status='completed';}$db->table('game_rooms')->where('id',$room['id'])->update(['state'=>json_encode($state,JSON_UNESCAPED_UNICODE),'status'=>$status,'version'=>(int)$room['version']+1,'updated_at'=>date('Y-m-d H:i:s')]);$db->transCommit();return $this->getForPlayer($code,$userId);}catch(\Throwable $e){$db->transRollback();throw $e;}
+    }
+
     public function getForPlayer(string $code, int $userId): array
     {
         $room = (new GameRoomModel())->where('code', strtoupper($code))->first();

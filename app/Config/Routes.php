@@ -104,6 +104,7 @@ $routes->group('', ['filter' => 'auth'], static function ($routes) {
     $routes->post('games/room/(:alphanum)/start-four', 'GameRooms::startFourPlayer/$1');
     $routes->get('games/room/(:alphanum)/four-state', 'GameRooms::fourPlayerState/$1');
     $routes->post('games/room/(:alphanum)/four-action', 'GameRooms::fourPlayerAction/$1');
+    $routes->post('games/room/(:alphanum)/four-rematch', 'GameRooms::fourPlayerRematch/$1');
     $routes->get('notes', 'Notes::index');
     $routes->get('notes/create', 'Notes::create');
     $routes->post('notes', 'Notes::store');

@@ -274,7 +274,7 @@ class GameRoomService
 
         $cutoff = date('Y-m-d H:i:s', strtotime('-25 seconds'));
         $roomQuery = (new GameRoomModel())
-            ->select('id, status, guest_user_id, host_room_seen_at, guest_room_seen_at, updated_at')
+            ->select('id, status, max_players, guest_user_id, host_room_seen_at, guest_room_seen_at, updated_at')
             ->whereIn('status', ['waiting', 'playing', 'completed']);
         if (! $force) {
             $roomQuery->where('updated_at <', $cutoff);
@@ -282,6 +282,11 @@ class GameRoomService
         $rooms = $roomQuery->findAll();
         $deleteIds = [];
         foreach ($rooms as $room) {
+            // Dört kişilik odaların presence bilgisi game_room_players tablosundadır.
+            // Eski host/guest temizleyicisi bu odaları yanlışlıkla silmemelidir.
+            if ((int) ($room['max_players'] ?? 2) > 2) {
+                continue;
+            }
             $hostGone = empty($room['host_room_seen_at']) || $room['host_room_seen_at'] < $cutoff;
             $guestGone = empty($room['guest_user_id']) || empty($room['guest_room_seen_at']) || $room['guest_room_seen_at'] < $cutoff;
             // Bitmiş bir tur, oyunculardan en az biri odada kaldığı sürece saklanır.

@@ -108,6 +108,12 @@ class GameRooms extends BaseController
         catch(RuntimeException $e){return $this->response->setStatusCode(422)->setJSON(['success'=>false,'message'=>$e->getMessage(),'csrfHash'=>csrf_hash()]);}
     }
 
+    public function fourPlayerRematch(string $code)
+    {
+        try{return $this->response->setJSON(['success'=>true,'room'=>(new FourPlayerGameService())->rematch($code,(int)session()->get('user_id')),'csrfHash'=>csrf_hash()]);}
+        catch(RuntimeException $e){return $this->response->setStatusCode(422)->setJSON(['success'=>false,'message'=>$e->getMessage(),'csrfHash'=>csrf_hash()]);}
+    }
+
     public function state(string $code)
     {
         try {
