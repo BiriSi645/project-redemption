@@ -123,6 +123,7 @@
         }
     }
 </style>
+<style>.games-head+p{display:none}</style>
 <header class="games-head">
     <h1>Oyunlar</h1>
     <p>Kısa bir mola verin ve en iyi skorunuzu geliştirin.</p>
@@ -167,5 +168,7 @@
         "games/sudoku",
     ) ?>">Oyunu aç</a>
     </article>
+    <article class="game-card sudoku"><span class="game-icon" aria-hidden="true">101</span><h2>101 Okey Online</h2><p>Dört oyuncuyla bireysel veya eşli oynayın; arkadaş davet edin ya da boş koltuklara bot ekleyin.</p><a class="button" href="<?= site_url('games/multiplayer') ?>?game=okey101">Online oda aç</a></article>
+    <article class="game-card mines"><span class="game-icon" aria-hidden="true">🎩</span><h2>Monopoly Online</h2><p>Klasik çevre tahtasında mülk alın, kira toplayın, açık artırma ve takaslarla rakiplerinizi iflasa sürükleyin.</p><a class="button" href="<?= site_url('games/multiplayer') ?>?game=monopoly">Online oda aç</a></article>
 </div>
 <?= $this->endSection() ?>

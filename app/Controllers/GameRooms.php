@@ -49,6 +49,11 @@ class GameRooms extends BaseController
             $fourPlayer = new FourPlayerGameService();
             if ($fourPlayer->isFourPlayerGame($code)) {
                 $room = $fourPlayer->getForPlayer($code, (int) session()->get('user_id'));
+                $room['activeUsers'] = [];
+                if ($room['status'] === 'waiting' && $room['isOwner'] && count($room['players']) < 4) {
+                    $joinedIds = array_map('intval', array_filter(array_column($room['players'], 'userId')));
+                    $room['activeUsers'] = array_values(array_filter((new UserModel())->activeUsers(), static fn (array $user): bool => ! in_array((int) $user['id'], $joinedIds, true)));
+                }
                 return view('games/four_player_room', ['title' => 'Oyun Odası ' . $room['code'], 'room' => $room]);
             }
             $room = (new GameRoomService())->getForPlayer($code, (int) session()->get('user_id'));
@@ -163,8 +168,19 @@ class GameRooms extends BaseController
     {
         $currentUserId = (int) session()->get('user_id');
         $room = (new GameRoomModel())->withPlayers($code);
-        if (! $room || (int) $room['host_user_id'] !== $currentUserId || $room['status'] !== 'waiting' || $room['guest_user_id'] !== null) {
+        if (! $room || (int) $room['host_user_id'] !== $currentUserId || $room['status'] !== 'waiting') {
             return redirect()->back()->with('error', 'Bu odadan davet gönderemezsiniz.');
+        }
+
+        $fourPlayer = in_array($room['game'], ['okey101', 'monopoly'], true);
+        if ($fourPlayer) {
+            $players = (new \App\Models\GameRoomPlayerModel())->forRoom((int) $room['id']);
+            $memberIds = array_map(static fn (array $player): int => (int) ($player['user_id'] ?? 0), $players);
+            if (count($players) >= 4 || in_array($userId, $memberIds, true)) {
+                return redirect()->back()->with('error', 'Kullanıcı zaten odada veya oda dolu.');
+            }
+        } elseif ($room['guest_user_id'] !== null) {
+            return redirect()->back()->with('error', 'Bu oda dolu.');
         }
 
         $target = (new UserModel())->where('id', $userId)->where('is_active', 1)
@@ -189,6 +205,8 @@ class GameRooms extends BaseController
             'type' => 'game_invite',
             'message' => session()->get('username') . ' sizi ' . match ($room['game']) {
                 'sudoku' => 'Sudoku',
+                'okey101' => '101 Okey',
+                'monopoly' => 'Monopoly',
                 'snake' => 'Yılan Yarışı',
                 default => 'Mayın Tarlası',
             } . ' oyununa davet etti.',
