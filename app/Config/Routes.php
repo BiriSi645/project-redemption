@@ -12,576 +12,117 @@ $routes->get('system/version', 'UpdateStatus::version');
 
 $routes->group('', ['filter' => 'auth'], static function ($routes) {
     $routes->post('logout', 'Auth::logout');
-
-    $routes->get(
-        'system/heartbeat',
-        'Presence::heartbeat'
-    );
-
-    $routes->get(
-        'system/active-users',
-        'Presence::activeUsers'
-    );
-
-    $routes->get(
-        'system/live-updates',
-        'LiveUpdates::status'
-    );
-
-    $routes->get(
-        'system/realtime-token',
-        'Realtime::token'
-    );
-
-    $routes->get(
-        'users/(:num)',
-        'Users::show/$1'
-    );
-
-    $routes->get(
-        'users/u',
-        'Users::byUsername'
-    );
-
-    $routes->get(
-        'users/u/(:segment)',
-        'Users::byUsername/$1'
-    );
-
-    $routes->post(
-        'users/profile',
-        'Users::updateProfile'
-    );
-
-    $routes->get(
-        'notifications',
-        'Notifications::index'
-    );
-
-    $routes->get(
-        'notifications/preview',
-        'Notifications::preview'
-    );
-
-    $routes->get(
-        'notifications/(:num)/open',
-        'Notifications::open/$1'
-    );
-
-    $routes->get(
-        'announcements/(:num)',
-        'Announcements::show/$1'
-    );
-
-    $routes->post(
-        'notifications/read-all',
-        'Notifications::readAll'
-    );
-
-    $routes->post(
-        'notifications/(:num)/read',
-        'Notifications::read/$1'
-    );
-
-    $routes->get(
-        'messages',
-        'Messages::index'
-    );
-
-    $routes->get(
-        'messages/preview',
-        'Messages::preview'
-    );
-
-    $routes->post(
-        'messages/read-all',
-        'Messages::readAll'
-    );
-
-    $routes->post(
-        'messages/start/(:num)',
-        'Messages::start/$1'
-    );
-
-    $routes->get(
-        'messages/(:num)',
-        'Messages::show/$1'
-    );
-
-    $routes->get(
-        'messages/(:num)/poll',
-        'Messages::poll/$1'
-    );
-
-    $routes->get(
-        'messages/(:num)/history',
-        'Messages::history/$1'
-    );
-
-    $routes->post(
-        'messages/(:num)/send',
-        'Messages::send/$1'
-    );
-
-    $routes->post(
-        'messages/(:num)/delete/(:num)',
-        'Messages::delete/$1/$2'
-    );
-
-    $routes->post(
-        'messages/block/(:num)',
-        'Messages::block/$1'
-    );
-
-    $routes->post(
-        'messages/unblock/(:num)',
-        'Messages::unblock/$1'
-    );
-
-    $routes->get(
-        'dashboard',
-        'Dashboard::index'
-    );
-
-    $routes->get(
-        'projects',
-        'Projects::index'
-    );
-
-    $routes->post(
-        'projects',
-        'Projects::store'
-    );
-
-    $routes->get(
-        'projects/invitations/(:num)',
-        'Projects::invitation/$1'
-    );
-
-    $routes->post(
-        'projects/invitations/(:num)',
-        'Projects::respond/$1'
-    );
-
-    $routes->get(
-        'projects/(:num)',
-        'Projects::show/$1'
-    );
-
-    $routes->post(
-        'projects/(:num)/invite',
-        'Projects::invite/$1'
-    );
-
-    $routes->post(
-        'projects/(:num)/items',
-        'Projects::storeItem/$1'
-    );
-
-    $routes->post(
-        'projects/(:num)/items/(:num)/status',
-        'Projects::itemStatus/$1/$2'
-    );
-
-    $routes->post(
-        'projects/(:num)/items/(:num)/assign',
-        'Projects::assignItem/$1/$2'
-    );
-
-    $routes->post(
-        'projects/(:num)/items/(:num)/schedule',
-        'Projects::scheduleItem/$1/$2'
-    );
-
-    $routes->post(
-        'projects/(:num)/sections',
-        'Projects::storeSection/$1'
-    );
-
-    $routes->post(
-        'projects/(:num)/sections/(:num)',
-        'Projects::updateSection/$1/$2'
-    );
-
-    $routes->post(
-        'projects/(:num)/sections/(:num)/delete',
-        'Projects::deleteSection/$1/$2'
-    );
-
-    $routes->post(
-        'projects/(:num)/items/(:num)/section',
-        'Projects::setItemSection/$1/$2'
-    );
-
-    $routes->get(
-        'calendar',
-        'Calendar::index'
-    );
-
-    $routes->post(
-        'calendar/reminders',
-        'Calendar::storeReminder'
-    );
-
-    $routes->post(
-        'calendar/reminders/(:num)/delete',
-        'Calendar::deleteReminder/$1'
-    );
-
-    $routes->get(
-        'profile',
-        'Profile::index'
-    );
-
-    $routes->post(
-        'profile',
-        'Profile::update'
-    );
-
-    $routes->post(
-        'profile/email/request',
-        'Profile::requestEmailChange'
-    );
-
-    $routes->post(
-        'profile/email/verify',
-        'Profile::verifyEmailChange'
-    );
-    $routes->post(
-        'profile/password',
-        'Profile::password'
-    );
-
-    $routes->get(
-        'profile/export/(:alpha)',
-        'Profile::export/$1'
-    );
-
-    $routes->post(
-        'profile/delete',
-        'Profile::delete'
-    );
-
-    $routes->get(
-        'tasks',
-        'Tasks::index'
-    );
-
-    $routes->get(
-        'tasks/create',
-        'Tasks::create'
-    );
-
-    $routes->post(
-        'tasks',
-        'Tasks::store'
-    );
-
-    $routes->get(
-        'tasks/(:num)/edit',
-        'Tasks::edit/$1'
-    );
-
-    $routes->post(
-        'tasks/(:num)',
-        'Tasks::update/$1'
-    );
-
-    $routes->post(
-        'tasks/(:num)/toggle',
-        'Tasks::toggle/$1'
-    );
-
-    $routes->post(
-        'tasks/(:num)/delete',
-        'Tasks::delete/$1'
-    );
-
-    $routes->get(
-        'habits',
-        'Habits::index'
-    );
-
-    $routes->get(
-        'habits/create',
-        'Habits::create'
-    );
-
-    $routes->post(
-        'habits',
-        'Habits::store'
-    );
-
-    $routes->get(
-        'habits/(:num)/edit',
-        'Habits::edit/$1'
-    );
-
-    $routes->post(
-        'habits/(:num)',
-        'Habits::update/$1'
-    );
-
-    $routes->post(
-        'habits/(:num)/complete',
-        'Habits::complete/$1'
-    );
-
-    $routes->post(
-        'habits/(:num)/toggle',
-        'Habits::toggle/$1'
-    );
-
-    $routes->post(
-        'habits/(:num)/delete',
-        'Habits::delete/$1'
-    );
-
-    $routes->get(
-        'journal',
-        'Journal::index'
-    );
-
-    $routes->get(
-        'journal/create',
-        'Journal::create'
-    );
-
-    $routes->post(
-        'journal',
-        'Journal::store'
-    );
-
-    $routes->get(
-        'journal/(:num)',
-        'Journal::show/$1'
-    );
-
-    $routes->get(
-        'journal/(:num)/edit',
-        'Journal::edit/$1'
-    );
-
-    $routes->post(
-        'journal/(:num)',
-        'Journal::update/$1'
-    );
-
-    $routes->post(
-        'journal/(:num)/delete',
-        'Journal::delete/$1'
-    );
-
-    $routes->get(
-        'timer',
-        'Timer::index'
-    );
-
-    $routes->get(
-        'games',
-        'Games::index'
-    );
-
-    $routes->get(
-        'games/snake',
-        'Games::snake'
-    );
-
-    $routes->get(
-        'games/minesweeper',
-        'Games::minesweeper'
-    );
-
-    $routes->get(
-        'games/sudoku',
-        'Games::sudoku'
-    );
-
-    $routes->get(
-        'games/sudoku/puzzle/(:alpha)',
-        'Games::sudokuPuzzle/$1'
-    );
-
-    $routes->post(
-        'games/score',
-        'Games::saveScore'
-    );
-
-    $routes->get(
-        'games/multiplayer',
-        'GameRooms::lobby'
-    );
-
-    $routes->post(
-        'games/multiplayer/create',
-        'GameRooms::create'
-    );
-
-    $routes->post(
-        'games/multiplayer/join',
-        'GameRooms::join'
-    );
-
-    $routes->get(
-        'games/room/(:alphanum)',
-        'GameRooms::show/$1'
-    );
-
-    $routes->get(
-        'games/room/(:alphanum)/state',
-        'GameRooms::state/$1'
-    );
-
-    $routes->get(
-        'games/room/(:alphanum)/version',
-        'GameRooms::version/$1'
-    );
-
-    $routes->post(
-        'games/room/(:alphanum)/move',
-        'GameRooms::move/$1'
-    );
-
-    $routes->post(
-        'games/room/(:alphanum)/leave',
-        'GameRooms::leave/$1'
-    );
-
-    $routes->post(
-        'games/room/(:alphanum)/invite/(:num)',
-        'GameRooms::invite/$1/$2'
-    );
-
-    $routes->get(
-        'notes',
-        'Notes::index'
-    );
-
-    $routes->get(
-        'notes/create',
-        'Notes::create'
-    );
-
-    $routes->post(
-        'notes',
-        'Notes::store'
-    );
-
-    $routes->get(
-        'notes/(:num)',
-        'Notes::show/$1'
-    );
-
-    $routes->get(
-        'notes/(:num)/edit',
-        'Notes::edit/$1'
-    );
-
-    $routes->post(
-        'notes/(:num)',
-        'Notes::update/$1'
-    );
-
-    $routes->post(
-        'notes/(:num)/delete',
-        'Notes::delete/$1'
-    );
-
-    $routes->post(
-        'notes/(:num)/comments',
-        'Notes::storeComment/$1'
-    );
-
-    $routes->post(
-        'notes/(:num)/comments/(:num)/delete',
-        'Notes::deleteComment/$1/$2'
-    );
-});
-
-$routes->get(
-    'forgot-password',
-    'Auth::forgotPassword'
-);
-
-$routes->post(
-    'forgot-password',
-    'Auth::sendPasswordReset'
-);
-
-$routes->get(
-    'reset-password/(:segment)',
-    'Auth::resetPassword/$1'
-);
-
-$routes->post(
-    'reset-password/(:segment)',
-    'Auth::updatePassword/$1'
-);
-
-$routes->get(
-    'verify-email',
-    'Auth::verificationPage'
-);
-
-$routes->post(
-    'verify-email',
-    'Auth::verifyEmail'
-);
-
-$routes->post(
-    'resend-verification',
-    'Auth::resendVerification'
-);
-
-$routes->group(
-    'admin',
-    [
-        'filter' => [
-            'auth',
-            'admin',
-        ],
-    ],
-    static function ($routes) {
-        $routes->get(
-            '',
-            'Admin::index'
-        );
-
-        $routes->get(
-            'users',
-            'Admin::users'
-        );
-
-        $routes->get(
-            'logs',
-            'Admin::logs'
-        );
-
-        $routes->get(
-            'notifications',
-            'AdminNotifications::index'
-        );
-
-        $routes->post(
-            'notifications',
-            'AdminNotifications::publish'
-        );
-
-        $routes->post(
-            'users/(:num)/role',
-            'Admin::role/$1'
-        );
-
-        $routes->post(
-            'users/(:num)/toggle',
-            'Admin::toggle/$1'
-        );
-
-        $routes->post(
-            'users/(:num)/destroy',
-            'Admin::destroy/$1'
-        );
-
-
-    }
-);
+    $routes->get('system/heartbeat', 'Presence::heartbeat');
+    $routes->get('system/active-users', 'Presence::activeUsers');
+    $routes->get('system/live-updates', 'LiveUpdates::status');
+    $routes->get('system/realtime-token', 'Realtime::token');
+    $routes->get('users/(:num)', 'Users::show/$1');
+    $routes->get('users/u', 'Users::byUsername');
+    $routes->get('users/u/(:segment)', 'Users::byUsername/$1');
+    $routes->post('users/profile', 'Users::updateProfile');
+    $routes->get('notifications', 'Notifications::index');
+    $routes->get('notifications/preview', 'Notifications::preview');
+    $routes->get('notifications/(:num)/open', 'Notifications::open/$1');
+    $routes->get('announcements/(:num)', 'Announcements::show/$1');
+    $routes->post('notifications/read-all', 'Notifications::readAll');
+    $routes->post('notifications/(:num)/read', 'Notifications::read/$1');
+    $routes->get('messages', 'Messages::index');
+    $routes->get('messages/preview', 'Messages::preview');
+    $routes->post('messages/read-all', 'Messages::readAll');
+    $routes->post('messages/start/(:num)', 'Messages::start/$1');
+    $routes->get('messages/(:num)', 'Messages::show/$1');
+    $routes->get('messages/(:num)/poll', 'Messages::poll/$1');
+    $routes->get('messages/(:num)/history', 'Messages::history/$1');
+    $routes->post('messages/(:num)/send', 'Messages::send/$1');
+    $routes->post('messages/(:num)/delete/(:num)', 'Messages::delete/$1/$2');
+    $routes->post('messages/block/(:num)', 'Messages::block/$1');
+    $routes->post('messages/unblock/(:num)', 'Messages::unblock/$1');
+    $routes->get('dashboard', 'Dashboard::index');
+    $routes->get('projects', 'Projects::index');
+    $routes->post('projects', 'Projects::store');
+    $routes->get('projects/invitations/(:num)', 'Projects::invitation/$1');
+    $routes->post('projects/invitations/(:num)', 'Projects::respond/$1');
+    $routes->get('projects/(:num)', 'Projects::show/$1');
+    $routes->post('projects/(:num)/invite', 'Projects::invite/$1');
+    $routes->post('projects/(:num)/items', 'Projects::storeItem/$1');
+    $routes->post('projects/(:num)/items/(:num)/status', 'Projects::itemStatus/$1/$2');
+    $routes->post('projects/(:num)/items/(:num)/assign', 'Projects::assignItem/$1/$2');
+    $routes->post('projects/(:num)/items/(:num)/schedule', 'Projects::scheduleItem/$1/$2');
+    $routes->post('projects/(:num)/sections', 'Projects::storeSection/$1');
+    $routes->post('projects/(:num)/sections/(:num)', 'Projects::updateSection/$1/$2');
+    $routes->post('projects/(:num)/sections/(:num)/delete', 'Projects::deleteSection/$1/$2');
+    $routes->post('projects/(:num)/items/(:num)/section', 'Projects::setItemSection/$1/$2');
+    $routes->get('calendar', 'Calendar::index');
+    $routes->post('calendar/reminders', 'Calendar::storeReminder');
+    $routes->post('calendar/reminders/(:num)/delete', 'Calendar::deleteReminder/$1');
+    $routes->get('profile', 'Profile::index');
+    $routes->post('profile', 'Profile::update');
+    $routes->post('profile/password', 'Profile::password');
+    $routes->get('profile/export/(:alpha)', 'Profile::export/$1');
+    $routes->post('profile/delete', 'Profile::delete');
+    $routes->get('tasks', 'Tasks::index');
+    $routes->get('tasks/create', 'Tasks::create');
+    $routes->post('tasks', 'Tasks::store');
+    $routes->get('tasks/(:num)/edit', 'Tasks::edit/$1');
+    $routes->post('tasks/(:num)', 'Tasks::update/$1');
+    $routes->post('tasks/(:num)/toggle', 'Tasks::toggle/$1');
+    $routes->post('tasks/(:num)/delete', 'Tasks::delete/$1');
+    $routes->get('habits', 'Habits::index');
+    $routes->get('habits/create', 'Habits::create');
+    $routes->post('habits', 'Habits::store');
+    $routes->get('habits/(:num)/edit', 'Habits::edit/$1');
+    $routes->post('habits/(:num)', 'Habits::update/$1');
+    $routes->post('habits/(:num)/complete', 'Habits::complete/$1');
+    $routes->post('habits/(:num)/toggle', 'Habits::toggle/$1');
+    $routes->post('habits/(:num)/delete', 'Habits::delete/$1');
+    $routes->get('journal', 'Journal::index');
+    $routes->get('journal/create', 'Journal::create');
+    $routes->post('journal', 'Journal::store');
+    $routes->get('journal/(:num)', 'Journal::show/$1');
+    $routes->get('journal/(:num)/edit', 'Journal::edit/$1');
+    $routes->post('journal/(:num)', 'Journal::update/$1');
+    $routes->post('journal/(:num)/delete', 'Journal::delete/$1');
+    $routes->get('timer', 'Timer::index');
+    $routes->get('games', 'Games::index');
+    $routes->get('games/snake', 'Games::snake');
+    $routes->get('games/minesweeper', 'Games::minesweeper');
+    $routes->get('games/sudoku', 'Games::sudoku');
+    $routes->post('games/score', 'Games::saveScore');
+    $routes->get('games/multiplayer', 'GameRooms::lobby');
+    $routes->post('games/multiplayer/create', 'GameRooms::create');
+    $routes->post('games/multiplayer/join', 'GameRooms::join');
+    $routes->get('games/room/(:alphanum)', 'GameRooms::show/$1');
+    $routes->get('games/room/(:alphanum)/state', 'GameRooms::state/$1');
+    $routes->get('games/room/(:alphanum)/version', 'GameRooms::version/$1');
+    $routes->post('games/room/(:alphanum)/move', 'GameRooms::move/$1');
+    $routes->post('games/room/(:alphanum)/rematch', 'GameRooms::rematch/$1');
+    $routes->post('games/room/(:alphanum)/leave', 'GameRooms::leave/$1');
+    $routes->post('games/room/(:alphanum)/invite/(:num)', 'GameRooms::invite/$1/$2');
+    $routes->get('notes', 'Notes::index');
+    $routes->get('notes/create', 'Notes::create');
+    $routes->post('notes', 'Notes::store');
+    $routes->get('notes/(:num)', 'Notes::show/$1');
+    $routes->get('notes/(:num)/edit', 'Notes::edit/$1');
+    $routes->post('notes/(:num)', 'Notes::update/$1');
+    $routes->post('notes/(:num)/delete', 'Notes::delete/$1');
+    $routes->post('notes/(:num)/comments', 'Notes::storeComment/$1');
+    $routes->post('notes/(:num)/comments/(:num)/delete', 'Notes::deleteComment/$1/$2');
+});$routes->get('forgot-password', 'Auth::forgotPassword');
+$routes->post('forgot-password', 'Auth::sendPasswordReset');
+$routes->get('reset-password/(:segment)', 'Auth::resetPassword/$1');
+$routes->post('reset-password/(:segment)', 'Auth::updatePassword/$1');
+
+$routes->get('verify-email', 'Auth::verificationPage');
+$routes->post('verify-email', 'Auth::verifyEmail');
+$routes->post('resend-verification', 'Auth::resendVerification');
+
+$routes->group('admin', ['filter' => ['auth','admin']], static function ($routes) {
+    $routes->get('', 'Admin::index');
+    $routes->get('users', 'Admin::users');
+    $routes->get('logs', 'Admin::logs');
+    $routes->get('notifications', 'AdminNotifications::index');
+    $routes->post('notifications', 'AdminNotifications::publish');
+    $routes->post('users/(:num)/role', 'Admin::role/$1');
+    $routes->post('users/(:num)/toggle', 'Admin::toggle/$1');
+    $routes->post('users/(:num)/destroy', 'Admin::destroy/$1');
+    });

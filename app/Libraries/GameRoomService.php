@@ -30,6 +30,8 @@ class GameRoomService
             'minesweeper' => $this->newMines($difficulty),
             default => $this->newSnake(),
         };
+        $state['round'] = 1;
+        $state['rematchReady'] = ['host' => false, 'guest' => false];
         $model = new GameRoomModel();
         for ($attempt = 0; $attempt < 8; $attempt++) {
             $code = $this->roomCode();
@@ -168,6 +170,89 @@ class GameRoomService
         }
     }
 
+    public function rematch(string $code, int $userId): array
+    {
+        $this->cleanupInactiveRooms();
+        $db = db_connect();
+        $db->transBegin();
+
+        try {
+            $room = $db->query(
+                'SELECT * FROM game_rooms WHERE code = ? FOR UPDATE',
+                [strtoupper($code)]
+            )->getRowArray();
+            $this->assertParticipant($room, $userId);
+
+            if ($room['game'] === 'snake') {
+                throw new RuntimeException('Yılan yeniden oynama isteği oyun sunucusu üzerinden gönderilmelidir.');
+            }
+            if ($room['guest_user_id'] === null) {
+                throw new RuntimeException('Yeniden oynamak için iki oyuncu da odada olmalı.');
+            }
+            if ($room['status'] !== 'completed') {
+                throw new RuntimeException('Bu tur henüz tamamlanmadı.');
+            }
+
+            $state = json_decode($room['state'], true) ?: [];
+            $ready = $state['rematchReady'] ?? ['host' => false, 'guest' => false];
+            $ready = [
+                'host' => ! empty($ready['host']),
+                'guest' => ! empty($ready['guest']),
+            ];
+
+            $role = (int) $room['host_user_id'] === $userId ? 'host' : 'guest';
+            $ready[$role] = true;
+            $state['rematchReady'] = $ready;
+            $state['round'] = max(1, (int) ($state['round'] ?? 1));
+            $started = false;
+            $status = 'completed';
+
+            if ($ready['host'] && $ready['guest']) {
+                $round = $state['round'] + 1;
+                $state = match ($room['game']) {
+                    'sudoku' => $this->newSudoku((string) $room['difficulty']),
+                    'minesweeper' => $this->newMines((string) $room['difficulty']),
+                    default => throw new RuntimeException('Desteklenmeyen multiplayer oyun.'),
+                };
+                $state['round'] = $round;
+                $state['rematchReady'] = ['host' => false, 'guest' => false];
+
+                // Sudoku süresi tur başlar başlamaz başlasın. Mayın Tarlası'nda
+                // mevcut davranış korunur ve süre ilk hücre açıldığında başlar.
+                if ($room['game'] === 'sudoku') {
+                    $state['startedAt'] = time();
+                }
+
+                $status = 'playing';
+                $started = true;
+            }
+
+            $presenceField = (int) $room['host_user_id'] === $userId
+                ? 'host_room_seen_at'
+                : 'guest_room_seen_at';
+
+            $db->table('game_rooms')->where('id', $room['id'])->update([
+                'state' => json_encode($state, JSON_UNESCAPED_UNICODE),
+                'status' => $status,
+                'version' => (int) $room['version'] + 1,
+                'updated_at' => date('Y-m-d H:i:s'),
+                $presenceField => date('Y-m-d H:i:s'),
+            ]);
+
+            $db->transCommit();
+            $fresh = (new GameRoomModel())->withPlayers(strtoupper($code));
+            $this->publishRoomUpdate($fresh);
+
+            return [
+                'room' => $this->publicRoom($fresh, $userId),
+                'started' => $started,
+            ];
+        } catch (\Throwable $e) {
+            $db->transRollback();
+            throw $e;
+        }
+    }
+
     public function leave(string $code, int $userId): void
     {
         $room = (new GameRoomModel())->where('code', strtoupper($code))->first();
@@ -199,8 +284,10 @@ class GameRoomService
         foreach ($rooms as $room) {
             $hostGone = empty($room['host_room_seen_at']) || $room['host_room_seen_at'] < $cutoff;
             $guestGone = empty($room['guest_user_id']) || empty($room['guest_room_seen_at']) || $room['guest_room_seen_at'] < $cutoff;
-            $completedCanBeDeleted = $room['status'] === 'completed'
-                && (($hostGone && $guestGone) || (! empty($room['updated_at']) && $room['updated_at'] < $cutoff));
+            // Bitmiş bir tur, oyunculardan en az biri odada kaldığı sürece saklanır.
+            // Böylece aynı oda koduyla yeniden oynanabilir. Oda ancak iki oyuncu da
+            // gerçekten ayrıldığında / presence timeout olduğunda temizlenir.
+            $completedCanBeDeleted = $room['status'] === 'completed' && $hostGone && $guestGone;
             if ($completedCanBeDeleted || ($room['status'] === 'waiting' && $hostGone) || ($room['status'] === 'playing' && $hostGone && $guestGone)) {
                 $deleteIds[] = (int) $room['id'];
             }
@@ -359,13 +446,9 @@ class GameRoomService
     {
         $now = (int) round(microtime(true) * 1000);
         $last = (int) ($state['lastTickMs'] ?? $now);
-        // Bir request gecikmiş olsa bile tek response içinde birkaç hücre birden
-        // ilerletme. Bu, istemcide yılanın ışınlanıyor gibi görünmesine neden olur.
-        // Gecikme varsa oyun kısa süreliğine yavaşlasın; sonraki requestlerde
-        // hücreler tek tek işlenerek görsel akıcılık korunsun.
-        $steps = max(0, intdiv($now - $last, self::SNAKE_TICK_MS));
+        $steps = min(8, max(0, intdiv($now - $last, self::SNAKE_TICK_MS)));
 
-        if ($steps > 0 && empty($state['completed'])) {
+        for ($i = 0; $i < $steps && empty($state['completed']); $i++) {
             $this->snakeStep($state, $hostId, $guestId);
             $state['lastTickMs'] += self::SNAKE_TICK_MS;
         }

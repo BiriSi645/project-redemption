@@ -86,6 +86,28 @@ class GameRooms extends BaseController
         }
     }
 
+    public function rematch(string $code)
+    {
+        try {
+            $userId = (int) session()->get('user_id');
+            session_write_close();
+            $result = (new GameRoomService())->rematch($code, $userId);
+
+            return $this->response->setJSON([
+                'success' => true,
+                'room' => $result['room'],
+                'started' => $result['started'],
+                'csrfHash' => csrf_hash(),
+            ]);
+        } catch (RuntimeException $e) {
+            return $this->response->setStatusCode(422)->setJSON([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'csrfHash' => csrf_hash(),
+            ]);
+        }
+    }
+
     public function invite(string $code, int $userId)
     {
         $currentUserId = (int) session()->get('user_id');

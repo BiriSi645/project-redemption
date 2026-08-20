@@ -185,6 +185,39 @@
         background: #fecaca
     }
 
+    .room-rematch {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin: 0 auto 14px;
+        padding: 12px;
+        max-width: 720px;
+        border: 1px solid #bfdbfe;
+        border-radius: 10px;
+        background: #eff6ff;
+        text-align: center
+    }
+
+    .room-rematch[hidden] {
+        display: none
+    }
+
+    .room-rematch-note {
+        color: #475569;
+        font-size: 13px
+    }
+
+    html[data-theme="dark"] .room-rematch {
+        border-color: #334155;
+        background: #172554
+    }
+
+    html[data-theme="dark"] .room-rematch-note {
+        color: #cbd5e1
+    }
+
     .room-controls {
         display: flex;
         justify-content: center;
@@ -482,6 +515,8 @@
     "games/room/" . $room["code"] . "/version",
 ) ?>" data-move-url="<?= site_url(
     "games/room/" . $room["code"] . "/move",
+) ?>" data-rematch-url="<?= site_url(
+    "games/room/" . $room["code"] . "/rematch",
 ) ?>" data-leave-url="<?= site_url(
     "games/room/" . $room["code"] . "/leave",
 ) ?>" data-csrf-name="<?= csrf_token() ?>" data-csrf-hash="<?= csrf_hash() ?>"
@@ -543,6 +578,10 @@
 ) ?></strong></div>
     </div>
     <div class="room-status" id="room-status" aria-live="polite"></div>
+    <div class="room-rematch" id="room-rematch" hidden>
+        <button class="button" id="rematch-button" type="button">Yeniden Oyna</button>
+        <span class="room-rematch-note" id="rematch-note"></span>
+    </div>
     <div class="shared-board <?= esc(match ($room["game"]) {
         "sudoku" => "sudoku",
         "snake" => "snake",
