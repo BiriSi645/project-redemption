@@ -20,6 +20,7 @@ $unreadMessageCount = (new \App\Models\DirectConversationModel())->unreadCount(
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= esc($title ?? "Project Redemption") ?></title>
+    <link rel="stylesheet" href="<?= base_url("css/messenger-dock.css") ?>">
     <style>
         * {
             box-sizing: border-box;
@@ -1342,9 +1343,37 @@ $unreadMessageCount = (new \App\Models\DirectConversationModel())->unreadCount(
     <div class="live-toast-stack" data-live-toast-stack data-status-url="<?= site_url(
     "system/live-updates",
 ) ?>" aria-live="polite" aria-atomic="false"></div>
+    <aside class="messenger-dock" data-messenger-dock data-preview-url="<?= site_url("messages/preview") ?>"
+        data-message-base="<?= site_url("messages") ?>" data-csrf-name="<?= csrf_token() ?>"
+        data-csrf-hash="<?= csrf_hash() ?>">
+        <button class="messenger-launcher" type="button" aria-label="Mesajları aç" aria-expanded="false"
+            data-messenger-launcher><span aria-hidden="true">✉</span><?php if ($unreadMessageCount > 0): ?><span
+                class="notification-badge"><?= $unreadMessageCount > 99 ? "99+" : $unreadMessageCount ?></span><?php endif; ?></button>
+        <section class="messenger-panel" hidden data-messenger-panel>
+            <header class="messenger-dock-head"><strong>Mesajlar</strong><span><a
+                        href="<?= site_url("messages") ?>">Tümünü gör</a><button class="messenger-close" type="button"
+                        aria-label="Kapat" data-messenger-close>×</button></span></header>
+            <div class="messenger-conversations" data-messenger-conversations>
+                <div class="messenger-state">Konuşmalar yükleniyor…</div>
+            </div>
+        </section>
+        <section class="messenger-chat" hidden data-messenger-chat>
+            <header class="messenger-chat-head">
+                <div class="messenger-chat-user"><span class="messenger-avatar" data-chat-avatar></span><strong
+                        data-chat-name></strong></div>
+                <div class="messenger-chat-actions"><a data-chat-page-link aria-label="Tam sayfada aç">↗</a><button
+                        class="messenger-close" type="button" aria-label="Kapat" data-chat-close>×</button></div>
+            </header>
+            <div class="messenger-chat-list" data-chat-list aria-live="polite"></div>
+            <form class="messenger-form" data-chat-form><textarea maxlength="2000" rows="1"
+                    placeholder="Bir mesaj yazın…" aria-label="Mesajınız" required data-chat-input></textarea><button
+                    type="submit">Gönder</button></form>
+        </section>
+    </aside>
     <div data-realtime-client data-token-url="<?= site_url("system/realtime-token") ?>"></div>
     <script src="<?= base_url("js/speech-input.js") ?>"></script>
     <script src="<?= base_url("js/message-popover.js") ?>"></script>
+    <script src="<?= base_url("js/messenger-dock.js") ?>"></script>
     <script src="<?= base_url("js/notification-popover.js") ?>"></script>
     <script src="<?= base_url("js/account-popover.js") ?>"></script>
     <script src="<?= base_url("js/realtime-client.js") ?>?v=<?= filemtime(
