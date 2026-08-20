@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Libraries\GameRoomService;
+use App\Libraries\FourPlayerGameService;
 use App\Libraries\TaskReminderService;
 use App\Libraries\NotificationActionPolicy;
 use App\Models\GameRoomModel;
@@ -79,7 +80,11 @@ class Notifications extends BaseController
                 return redirect()->to(site_url('notifications'))->with('error', 'Oyun odası artık mevcut değil.');
             }
             try {
-                (new GameRoomService())->join((int) session()->get('user_id'), $room['code']);
+                if (in_array($room['game'], ['okey101', 'monopoly'], true)) {
+                    (new FourPlayerGameService())->join((int) session()->get('user_id'), $room['code']);
+                } else {
+                    (new GameRoomService())->join((int) session()->get('user_id'), $room['code']);
+                }
                 return redirect()->to(site_url('games/room/' . $room['code']));
             } catch (RuntimeException $e) {
                 return redirect()->to(site_url('notifications'))->with('error', $e->getMessage());

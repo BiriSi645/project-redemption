@@ -135,7 +135,15 @@ $server->onWorkerStart = static function () use (&$database, &$lastMessageId, &$
                 $previousVersion = $roomVersions[$roomId] ?? null; $roomVersions[$roomId] = $version;
                 if ($previousVersion === null || $previousVersion === $version) continue;
                 $payload = ['type' => 'game-room', 'roomCode' => $row['code'], 'game' => $row['game'], 'status' => $row['status'], 'version' => $version];
-                foreach (array_unique([(int) $row['host_user_id'], (int) ($row['guest_user_id'] ?? 0)]) as $userId) {
+                $recipientIds = [(int) $row['host_user_id'], (int) ($row['guest_user_id'] ?? 0)];
+                if (in_array($row['game'], ['okey101', 'monopoly'], true)) {
+                    $players = $database->query('SELECT user_id FROM game_room_players WHERE room_id=' . $roomId . ' AND user_id IS NOT NULL');
+                    if ($players) {
+                        while ($player = $players->fetch_assoc()) $recipientIds[] = (int) $player['user_id'];
+                        $players->free();
+                    }
+                }
+                foreach (array_unique($recipientIds) as $userId) {
                     if ($userId < 1) continue;
                     foreach ($connectionsByUser[$userId] ?? [] as $connection) $sendJson($connection, $payload);
                 }
