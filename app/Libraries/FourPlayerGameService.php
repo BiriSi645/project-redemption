@@ -188,7 +188,15 @@ final class FourPlayerGameService
             if(!$room||!in_array($room['game'],self::GAMES,true)||$room['status']!=='playing')throw new RuntimeException('Oyun aktif değil.');
             $players=(new GameRoomPlayerModel())->forRoom((int)$room['id']);$seat=null;foreach($players as $p)if((int)($p['user_id']??0)===$userId)$seat=(int)$p['seat_index'];if($seat===null)throw new RuntimeException('Bu odada değilsiniz.');
             $state=json_decode($room['state'],true);$engine=$room['game']==='okey101'?new Okey101Engine():new MonopolyEngine();$engine->act($state,$seat,(string)($input['action']??''),$input);
-            for($guard=0;$guard<12&&$state['phase']==='playing';$guard++){ $current=(int)$state['turn'];$player=null;foreach($players as $p)if((int)$p['seat_index']===$current)$player=$p;if(!$player||$player['player_type']!=='bot')break;$engine->botTurn($state,$current); }
+            for($guard=0;$guard<40&&$state['phase']==='playing';$guard++){
+                $current = ! empty($state['auction'])
+                    ? (int) $state['auction']['next']
+                    : (int) $state['turn'];
+                $player=null;
+                foreach($players as $p)if((int)$p['seat_index']===$current)$player=$p;
+                if(!$player||$player['player_type']!=='bot')break;
+                $engine->botTurn($state,$current);
+            }
             $status=$state['phase']==='completed'?'completed':'playing';$db->table('game_rooms')->where('id',$room['id'])->update(['state'=>json_encode($state,JSON_UNESCAPED_UNICODE),'status'=>$status,'version'=>(int)$room['version']+1,'updated_at'=>date('Y-m-d H:i:s')]);
             $db->transCommit();return $this->getForPlayer($code,$userId);
         }catch(\Throwable $e){$db->transRollback();throw $e;}
