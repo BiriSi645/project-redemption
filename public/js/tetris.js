@@ -843,9 +843,10 @@
         .forEach(button => {
             button.addEventListener(
                 'pointerdown',
-                () => action(
-                    button.dataset.tetrisAction
-                )
+                event => {
+                    event.preventDefault();
+                    action(button.dataset.tetrisAction);
+                }
             );
         });
 
