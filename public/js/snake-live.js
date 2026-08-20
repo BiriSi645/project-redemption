@@ -171,28 +171,13 @@
         function visualState() {
             if (!liveState?.snakes?.host || !liveState?.snakes?.guest) return null;
 
-            if (phase !== 'playing' || liveState.completed) {
-                return {
-                    grid: Number(liveState.grid || 30),
-                    food: liveState.food,
-                    snakes: liveState.snakes,
-                };
-            }
-
-            const phaseProgress = clamp((serverNow() - tickAt) / stepMs, 0, 1);
-            // Sabit hız: her hücrede hızlanıp yavaşlama hissi oluşmasın.
-            const progress = phaseProgress;
-
-            const hostTarget = predictedSnake(liveState.snakes.host, liveState.directions.host);
-            const guestTarget = predictedSnake(liveState.snakes.guest, liveState.directions.guest);
-
+            // Offline Yılan gibi hücre-hücre hareket: serverdan gelen gerçek grid
+            // konumlarını doğrudan çiziyoruz. WebSocket düşük gecikmeli kalır,
+            // fakat iki hücre arasında görsel interpolation/kayma yapılmaz.
             return {
                 grid: Number(liveState.grid || 30),
                 food: liveState.food,
-                snakes: {
-                    host: interpolateSnake(liveState.snakes.host, hostTarget, progress),
-                    guest: interpolateSnake(liveState.snakes.guest, guestTarget, progress),
-                },
+                snakes: liveState.snakes,
             };
         }
 
