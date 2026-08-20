@@ -99,6 +99,11 @@ $routes->group('', ['filter' => 'auth'], static function ($routes) {
     $routes->post('games/room/(:alphanum)/rematch', 'GameRooms::rematch/$1');
     $routes->post('games/room/(:alphanum)/leave', 'GameRooms::leave/$1');
     $routes->post('games/room/(:alphanum)/invite/(:num)', 'GameRooms::invite/$1/$2');
+    $routes->post('games/room/(:alphanum)/bots', 'GameRooms::addBot/$1');
+    $routes->post('games/room/(:alphanum)/bots/(:num)/remove', 'GameRooms::removeBot/$1/$2');
+    $routes->post('games/room/(:alphanum)/start-four', 'GameRooms::startFourPlayer/$1');
+    $routes->get('games/room/(:alphanum)/four-state', 'GameRooms::fourPlayerState/$1');
+    $routes->post('games/room/(:alphanum)/four-action', 'GameRooms::fourPlayerAction/$1');
     $routes->get('notes', 'Notes::index');
     $routes->get('notes/create', 'Notes::create');
     $routes->post('notes', 'Notes::store');

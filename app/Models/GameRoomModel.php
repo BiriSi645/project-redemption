@@ -10,7 +10,7 @@ class GameRoomModel extends Model
     protected $primaryKey = 'id';
     protected $returnType = 'array';
     protected $useTimestamps = true;
-    protected $allowedFields = ['code', 'game', 'difficulty', 'host_user_id', 'guest_user_id', 'host_room_seen_at', 'guest_room_seen_at', 'status', 'state', 'version'];
+    protected $allowedFields = ['code', 'game', 'difficulty', 'settings', 'max_players', 'host_user_id', 'guest_user_id', 'host_room_seen_at', 'guest_room_seen_at', 'status', 'state', 'version'];
 
     public function withPlayers(string $code): ?array
     {

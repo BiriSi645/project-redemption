@@ -1,0 +1,11 @@
+(() => {
+    const root=document.getElementById('four-player-game'); if(!root)return;
+    const handEl=document.getElementById('okey-hand'),statusEl=document.getElementById('okey-status'),discardEl=document.getElementById('okey-discard'),message=document.getElementById('okey-message');
+    let room=null,selected=new Set(),busy=false;
+    const color={red:'#ef4444',blue:'#3b82f6',black:'#111827',yellow:'#eab308'};
+    const tileText=t=>t.fake?'S':String(t.number);
+    function render(data){room=data;const s=room.state;statusEl.textContent=s.phase==='completed'?(s.winnerSeat===null?'El bitti.':'Kazanan: Koltuk '+(s.winnerSeat+1)):`Sıra: Koltuk ${s.turn+1} · Ortada ${s.deck.length} taş`;const top=s.discard?.at(-1);discardEl.textContent='Yerde: '+(top?tileText(top):'—');handEl.innerHTML='';for(const t of s.hand||[]){const b=document.createElement('button');b.type='button';b.textContent=tileText(t);b.style.cssText=`width:42px;height:64px;border:2px solid ${selected.has(t.id)?'#22c55e':'#cbd5e1'};border-radius:8px;background:#fff;color:${t.fake?'#7c3aed':color[t.color]};font-weight:800`;b.onclick=()=>{selected.has(t.id)?selected.delete(t.id):selected.add(t.id);render(room)};handEl.appendChild(b)}}
+    async function load(){try{const r=await fetch(root.dataset.stateUrl,{headers:{Accept:'application/json'}}),p=await r.json();if(p.success)render(p.room)}catch{}}
+    async function act(action,source){if(busy)return;let body={action};if(action==='draw')body.source=source;if(action==='discard'){if(selected.size!==1){message.textContent='Atmak için bir taş seç.';return}body.tile=[...selected][0]}if(action==='open')body.groups=[[...selected]];if(action==='pairs')body.tiles=[...selected];busy=true;try{const r=await fetch(root.dataset.actionUrl,{method:'POST',headers:{'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest'},body:JSON.stringify({...body,[root.dataset.csrfName]:root.dataset.csrfHash})}),p=await r.json();if(p.csrfHash)root.dataset.csrfHash=p.csrfHash;if(!r.ok)throw new Error(p.message);selected.clear();render(p.room);message.textContent=''}catch(e){message.textContent=e.message}finally{busy=false}}
+    document.querySelectorAll('[data-okey-action]').forEach(b=>b.onclick=()=>act(b.dataset.okeyAction,b.dataset.source));load();setInterval(load,3000);
+})();

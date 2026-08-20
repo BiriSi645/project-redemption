@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Libraries\GameRoomService;
+use App\Libraries\FourPlayerGameService;
 use App\Models\GameRoomModel;
 use App\Models\NotificationModel;
 use App\Models\UserModel;
@@ -18,7 +19,10 @@ class GameRooms extends BaseController
     public function create()
     {
         try {
-            $room = (new GameRoomService())->create((int) session()->get('user_id'), (string) $this->request->getPost('game'), (string) $this->request->getPost('difficulty'));
+            $game = (string) $this->request->getPost('game');
+            $room = in_array($game, ['okey101', 'monopoly'], true)
+                ? (new FourPlayerGameService())->create((int) session()->get('user_id'), $game, $this->request->getPost())
+                : (new GameRoomService())->create((int) session()->get('user_id'), $game, (string) $this->request->getPost('difficulty'));
             return redirect()->to(site_url('games/room/' . $room['code']));
         } catch (RuntimeException $e) {
             return redirect()->back()->withInput()->with('error', $e->getMessage());
@@ -28,7 +32,11 @@ class GameRooms extends BaseController
     public function join()
     {
         try {
-            $room = (new GameRoomService())->join((int) session()->get('user_id'), (string) $this->request->getPost('code'));
+            $code = (string) $this->request->getPost('code');
+            $fourPlayer = new FourPlayerGameService();
+            $room = $fourPlayer->isFourPlayerGame($code)
+                ? $fourPlayer->join((int) session()->get('user_id'), $code)
+                : (new GameRoomService())->join((int) session()->get('user_id'), $code);
             return redirect()->to(site_url('games/room/' . $room['code']));
         } catch (RuntimeException $e) {
             return redirect()->back()->withInput()->with('error', $e->getMessage());
@@ -38,6 +46,11 @@ class GameRooms extends BaseController
     public function show(string $code)
     {
         try {
+            $fourPlayer = new FourPlayerGameService();
+            if ($fourPlayer->isFourPlayerGame($code)) {
+                $room = $fourPlayer->getForPlayer($code, (int) session()->get('user_id'));
+                return view('games/four_player_room', ['title' => 'Oyun Odası ' . $room['code'], 'room' => $room]);
+            }
             $room = (new GameRoomService())->getForPlayer($code, (int) session()->get('user_id'));
             $activeUsers = [];
             if ($room['status'] === 'waiting' && (int) $room['host']['id'] === (int) session()->get('user_id')) {
@@ -50,6 +63,44 @@ class GameRooms extends BaseController
         } catch (RuntimeException $e) {
             return redirect()->to(site_url('games/multiplayer'))->with('error', $e->getMessage());
         }
+    }
+
+    public function addBot(string $code)
+    {
+        try {
+            (new FourPlayerGameService())->addBot($code, (int) session()->get('user_id'), (string) $this->request->getPost('difficulty'));
+            return redirect()->back()->with('success', 'Bot odaya eklendi.');
+        } catch (RuntimeException $e) {
+            return redirect()->back()->with('error', $e->getMessage());
+        }
+    }
+
+    public function removeBot(string $code, int $seat)
+    {
+        try {
+            (new FourPlayerGameService())->removeBot($code, (int) session()->get('user_id'), $seat);
+            return redirect()->back()->with('success', 'Bot odadan kaldırıldı.');
+        } catch (RuntimeException $e) {
+            return redirect()->back()->with('error', $e->getMessage());
+        }
+    }
+
+    public function startFourPlayer(string $code)
+    {
+        try {(new FourPlayerGameService())->start($code,(int)session()->get('user_id'));return redirect()->back();}
+        catch(RuntimeException $e){return redirect()->back()->with('error',$e->getMessage());}
+    }
+
+    public function fourPlayerState(string $code)
+    {
+        try{return $this->response->setJSON(['success'=>true,'room'=>(new FourPlayerGameService())->getForPlayer($code,(int)session()->get('user_id'))]);}
+        catch(RuntimeException $e){return $this->response->setStatusCode(403)->setJSON(['success'=>false,'message'=>$e->getMessage()]);}
+    }
+
+    public function fourPlayerAction(string $code)
+    {
+        try{$input=$this->request->getJSON(true)?:$this->request->getPost();return $this->response->setJSON(['success'=>true,'room'=>(new FourPlayerGameService())->action($code,(int)session()->get('user_id'),$input),'csrfHash'=>csrf_hash()]);}
+        catch(RuntimeException $e){return $this->response->setStatusCode(422)->setJSON(['success'=>false,'message'=>$e->getMessage(),'csrfHash'=>csrf_hash()]);}
     }
 
     public function state(string $code)
