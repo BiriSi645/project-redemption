@@ -188,6 +188,11 @@ function publicState(state) {
         winnerId: state.winnerId ? Number(state.winnerId) : null,
         loserId: state.loserId ? Number(state.loserId) : null,
         reason: state.reason ? String(state.reason) : null,
+        round: Math.max(1, Number(state.round || 1)),
+        rematchReady: {
+            host: Boolean(state.rematchReady?.host),
+            guest: Boolean(state.rematchReady?.guest),
+        },
     };
 }
 
@@ -276,6 +281,11 @@ function normalizeState(row) {
     state.winnerId = state.winnerId ? Number(state.winnerId) : null;
     state.loserId = state.loserId ? Number(state.loserId) : null;
     state.reason = state.reason || null;
+    state.round = Math.max(1, Number(state.round || 1));
+    state.rematchReady = {
+        host: Boolean(state.rematchReady?.host),
+        guest: Boolean(state.rematchReady?.guest),
+    };
 
     return state;
 }
@@ -304,6 +314,8 @@ async function getSession(row) {
             lastPersistAt: 0,
             emptySince: null,
             persistInFlight: false,
+            persistPending: false,
+            persistPendingFinal: false,
             finalPersisted: String(row.status || '') === 'completed',
         };
         sessions.set(code, session);
@@ -502,18 +514,62 @@ function randomFood(state) {
     return free[randomInt(0, free.length)];
 }
 
+function freshSnakeState(session) {
+    const grid = Number(session.state.grid || DEFAULT_GRID);
+    const targetLength = Number(session.state.targetLength || DEFAULT_TARGET);
+    const round = Math.max(1, Number(session.state.round || 1)) + 1;
+
+    const hostHeadX = Math.max(3, Math.floor(grid * 0.24));
+    const hostY = Math.max(2, Math.floor(grid * 0.30));
+    const guestHeadX = Math.min(grid - 4, Math.floor(grid * 0.74));
+    const guestY = Math.min(grid - 3, Math.floor(grid * 0.67));
+
+    return {
+        grid,
+        targetLength,
+        snakes: {
+            host: [
+                { x: hostHeadX, y: hostY },
+                { x: hostHeadX - 1, y: hostY },
+                { x: hostHeadX - 2, y: hostY },
+            ],
+            guest: [
+                { x: guestHeadX, y: guestY },
+                { x: guestHeadX + 1, y: guestY },
+                { x: guestHeadX + 2, y: guestY },
+            ],
+        },
+        directions: { host: 'right', guest: 'left' },
+        food: { x: Math.floor(grid / 2), y: Math.floor(grid / 2) },
+        startedAt: null,
+        completed: false,
+        completedAt: null,
+        winnerId: null,
+        loserId: null,
+        reason: null,
+        round,
+        rematchReady: { host: false, guest: false },
+    };
+}
+
 function finish(session, winnerId, loserId, reason) {
     session.state.completed = true;
     session.state.completedAt = Math.floor(Date.now() / 1000);
     session.state.winnerId = winnerId || null;
     session.state.loserId = loserId || null;
     session.state.reason = reason;
+    session.state.rematchReady = { host: false, guest: false };
     session.dbStatus = 'completed';
     session.phase = 'completed';
+    session.finalPersisted = false;
 }
 
 async function persistSession(session, final = false) {
-    if (session.persistInFlight) return;
+    if (session.persistInFlight) {
+        session.persistPending = true;
+        session.persistPendingFinal = session.persistPendingFinal || final;
+        return;
+    }
     session.persistInFlight = true;
 
     try {
@@ -556,6 +612,12 @@ async function persistSession(session, final = false) {
         console.error('SNAKE_PERSIST_ERROR', session.code, error);
     } finally {
         session.persistInFlight = false;
+        if (session.persistPending) {
+            const pendingFinal = session.persistPendingFinal;
+            session.persistPending = false;
+            session.persistPendingFinal = false;
+            void persistSession(session, pendingFinal);
+        }
     }
 }
 
@@ -610,6 +672,37 @@ function handleDirection(socket, message) {
     });
 }
 
+function handleRematch(socket) {
+    const session = sessions.get(socket.roomCode);
+    if (!session || !session.state.completed) return;
+
+    const player = roleFor(session, socket.userId);
+    if (!player) return;
+
+    session.state.rematchReady = {
+        host: Boolean(session.state.rematchReady?.host),
+        guest: Boolean(session.state.rematchReady?.guest),
+    };
+    session.state.rematchReady[player] = true;
+
+    if (session.state.rematchReady.host && session.state.rematchReady.guest) {
+        session.state = freshSnakeState(session);
+        session.dbStatus = 'playing';
+        session.directionQueues = { host: [], guest: [] };
+        session.tick = 0;
+        session.tickAt = Date.now();
+        session.nextStepAt = Date.now() + COUNTDOWN_MS;
+        session.finalPersisted = false;
+        session.phase = bothPlayersConnected(session) ? 'countdown' : 'paused';
+        broadcast(session, statePacket(session, 'phase'));
+        void persistSession(session, true);
+        return;
+    }
+
+    broadcast(session, statePacket(session));
+    void persistSession(session, true);
+}
+
 function cleanupSocket(socket) {
     if (!socket.authenticated || !socket.roomCode) return;
     const session = sessions.get(socket.roomCode);
@@ -651,7 +744,9 @@ async function gameLoop() {
             }
         }
 
-        if (!session.state.completed && now - session.lastPersistAt >= PERSIST_MS) {
+        // Tur bitmiş olsa bile oyuncular odada kaldığı sürece DB presence'ını
+        // canlı tut. Aksi halde PHP cleanup tamamlanmış odayı terk edilmiş sanabilir.
+        if (now - session.lastPersistAt >= PERSIST_MS) {
             void persistSession(session);
         }
 
@@ -738,6 +833,11 @@ wss.on('connection', (socket, request) => {
 
         if (message?.type === 'direction') {
             handleDirection(socket, message);
+            return;
+        }
+
+        if (message?.type === 'rematch') {
+            handleRematch(socket);
             return;
         }
 

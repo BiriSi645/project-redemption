@@ -186,7 +186,7 @@
     }
 
     .room-rematch {
-        display: flex;
+        display: none;
         align-items: center;
         justify-content: center;
         gap: 10px;
@@ -200,8 +200,8 @@
         text-align: center
     }
 
-    .room-rematch[hidden] {
-        display: none
+    .room-rematch.is-visible {
+        display: flex
     }
 
     .room-rematch-note {
@@ -578,9 +578,9 @@
 ) ?></strong></div>
     </div>
     <div class="room-status" id="room-status" aria-live="polite"></div>
-    <div class="room-rematch" id="room-rematch" hidden>
+    <div class="room-rematch" id="room-rematch" aria-hidden="true">
         <button class="button" id="rematch-button" type="button">Yeniden Oyna</button>
-        <span class="room-rematch-note" id="rematch-note"></span>
+        <span class="room-rematch-note" id="rematch-note" aria-live="polite"></span>
     </div>
     <div class="shared-board <?= esc(match ($room["game"]) {
         "sudoku" => "sudoku",

@@ -36,6 +36,9 @@
         const controls = document.getElementById('room-controls');
         const guestName = document.getElementById('guest-name');
         const guestLegend = document.getElementById('guest-legend');
+        const rematchPanel = document.getElementById('room-rematch');
+        const rematchButton = document.getElementById('rematch-button');
+        const rematchNote = document.getElementById('rematch-note');
 
         function wsUrl() {
             const configured = String(root.dataset.snakeWsUrl || '').trim();
@@ -63,6 +66,34 @@
         function updateNames() {
             if (guestName) guestName.textContent = room.guest?.username || 'Bekleniyor…';
             if (guestLegend) guestLegend.textContent = room.guest?.username || 'Oyuncu 2';
+        }
+
+        function roundCompleted() {
+            return room.status === 'completed' || Boolean(liveState?.completed);
+        }
+
+        function updateRematch() {
+            if (!rematchPanel || !rematchButton || !rematchNote) return;
+
+            const visible = roundCompleted() && Boolean(room.guest);
+            rematchPanel.classList.toggle('is-visible', visible);
+            rematchPanel.setAttribute('aria-hidden', visible ? 'false' : 'true');
+            if (!visible) return;
+            const playerRole = role || (Number(room.currentUserId) === Number(room.host.id) ? 'host' : 'guest');
+            const otherRole = playerRole === 'host' ? 'guest' : 'host';
+            const mine = Boolean(liveState?.rematchReady?.[playerRole]);
+            const other = Boolean(liveState?.rematchReady?.[otherRole]);
+
+            rematchButton.disabled = !ready || mine;
+            rematchButton.textContent = mine ? 'Hazırsın ✓' : 'Yeniden Oyna';
+
+            if (mine && !other) {
+                rematchNote.textContent = 'Rakibin yeniden oynaması bekleniyor…';
+            } else if (!mine && other) {
+                rematchNote.textContent = 'Rakibin hazır. Yeniden oynamak için sen de onayla.';
+            } else {
+                rematchNote.textContent = 'İkiniz de onaylayınca aynı odada yeni tur başlayacak.';
+            }
         }
 
         function updateStatus() {
@@ -268,6 +299,7 @@
             }
 
             updateStatus();
+            updateRematch();
             setControlsEnabled();
         }
 
@@ -393,14 +425,12 @@
                 socket = null;
                 ready = false;
                 phase = room.status === 'completed' ? 'completed' : 'paused';
-                phaseMessage =
-                    room.status === 'completed'
-                        ? ''
-                        : 'Yılan sunucusu bağlantısı koptu; yeniden bağlanılıyor…';
+                phaseMessage = 'Yılan sunucusu bağlantısı koptu; yeniden bağlanılıyor…';
                 clearInterval(pingTimer);
                 updateStatus();
+                updateRematch();
                 setControlsEnabled();
-                if (room.status !== 'completed') scheduleReconnect();
+                scheduleReconnect();
             });
 
             active.addEventListener('error', () => {
@@ -410,6 +440,11 @@
             lastPongAt = Date.now();
             startPing();
         }
+
+        rematchButton?.addEventListener('click', () => {
+            if (!ready || !roundCompleted()) return;
+            send({ type: 'rematch' });
+        });
 
         controls?.addEventListener('click', (event) => {
             const button = event.target.closest('[data-direction]');
@@ -464,6 +499,7 @@
         });
 
         updateStatus();
+        updateRematch();
         setControlsEnabled();
         animationFrame = requestAnimationFrame(draw);
         connect();

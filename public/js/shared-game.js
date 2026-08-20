@@ -2,7 +2,10 @@
     'use strict';
     const root = document.getElementById('shared-game'),
         board = document.getElementById('shared-board'),
-        statusEl = document.getElementById('room-status');
+        statusEl = document.getElementById('room-status'),
+        rematchPanel = document.getElementById('room-rematch'),
+        rematchButton = document.getElementById('rematch-button'),
+        rematchNote = document.getElementById('rematch-note');
     if (!root || !board) return;
     let room = JSON.parse(document.getElementById('initial-room-data').textContent);
 
@@ -23,6 +26,7 @@
         leaving = false,
         preservingRoom = false,
         realtimeConnected = false,
+        rematchSending = false,
         queuedSnakeDirection = null,
         snakeAnimationFrame = null,
         snakeVisualFrom = null,
@@ -80,8 +84,37 @@
             statusEl.textContent =
                 'Oyun başladı — yaptığınız hamle arkadaşınızın ekranında da görünecek.';
     }
+    function roundCompleted() {
+        return room.status === 'completed' || Boolean(room.state?.completed);
+    }
+
+    function updateRematch() {
+        if (!rematchPanel || !rematchButton || !rematchNote) return;
+
+        const visible = roundCompleted() && Boolean(room.guest);
+        rematchPanel.classList.toggle('is-visible', visible);
+        rematchPanel.setAttribute('aria-hidden', visible ? 'false' : 'true');
+        if (!visible) return;
+        const role = Number(room.currentUserId) === Number(room.host.id) ? 'host' : 'guest';
+        const ready = Boolean(room.state?.rematchReady?.[role]);
+        const otherRole = role === 'host' ? 'guest' : 'host';
+        const otherReady = Boolean(room.state?.rematchReady?.[otherRole]);
+
+        rematchButton.disabled = rematchSending || ready;
+        rematchButton.textContent = ready ? 'Hazırsın ✓' : 'Yeniden Oyna';
+
+        if (ready && !otherReady) {
+            rematchNote.textContent = 'Rakibin yeniden oynaması bekleniyor…';
+        } else if (!ready && otherReady) {
+            rematchNote.textContent = 'Rakibin hazır. Yeniden oynamak için sen de onayla.';
+        } else {
+            rematchNote.textContent = 'İkiniz de onaylayınca aynı odada yeni tur başlayacak.';
+        }
+    }
+
     function render() {
         updateStatus();
+        updateRematch();
         if (room.game === 'sudoku') renderSudoku();
         else if (room.game === 'snake') renderSnake();
         else renderMines();
@@ -414,6 +447,7 @@
         sendMove({ direction });
     });
     function pollDelay() {
+        if (room.status === 'completed') return 10000;
         if (room.game === 'snake' && room.status === 'playing') {
             return Math.min(180 * 2 ** failures, 2500);
         }
@@ -429,10 +463,8 @@
     function schedulePoll(immediate = false, overrideDelay = null) {
         clearTimeout(pollTimer);
 
-        if (room.status === 'completed') {
-            return;
-        }
-
+        // Tamamlanmış turda da 10 sn'lik presence heartbeat devam eder.
+        // Böylece oyuncular odada beklerken oda temizlenmez ve rematch eventi alınır.
         const delay = immediate
             ? 0
             : (overrideDelay === null ? pollDelay() : Math.max(0, overrideDelay));
@@ -532,6 +564,46 @@
 
         loadState();
     });
+    rematchButton?.addEventListener('click', async () => {
+        if (rematchSending || !roundCompleted()) return;
+        rematchSending = true;
+        updateRematch();
+
+        try {
+            const body = new URLSearchParams({
+                [root.dataset.csrfName]: root.dataset.csrfHash,
+            });
+            const response = await fetch(root.dataset.rematchUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    Accept: 'application/json',
+                },
+                body,
+                credentials: 'same-origin',
+                cache: 'no-store',
+            });
+            const result = await response.json().catch(() => null);
+            if (result?.csrfHash) root.dataset.csrfHash = result.csrfHash;
+            if (!response.ok || !result?.success || !result.room) {
+                throw new Error(result?.message || 'Yeniden oynama isteği gönderilemedi.');
+            }
+
+            room = result.room;
+            selected = null;
+            mode = 'reveal';
+            failures = 0;
+            render();
+            schedulePoll();
+        } catch (error) {
+            statusEl.textContent = error.message || 'Yeniden oynama isteği gönderilemedi.';
+        } finally {
+            rematchSending = false;
+            updateRematch();
+        }
+    });
+
     document.getElementById('leave-room-form')?.addEventListener('submit', () => {
         leaving = true;
     });
@@ -543,24 +615,9 @@
     document.addEventListener('project:room-preserve', () => {
         preservingRoom = true;
     });
-    window.addEventListener(
-        'pagehide',
-        () => {
-            if (leaving || preservingRoom) return;
-            leaving = true;
-            const body = new URLSearchParams({ [root.dataset.csrfName]: root.dataset.csrfHash });
-            fetch(root.dataset.leaveUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-                body,
-                keepalive: true,
-            }).catch(() => {});
-        },
-        { once: true },
-    );
+    // Sayfa yenileme / kısa bağlantı kopması artık odayı terk etme sayılmaz.
+    // Oda yalnızca "Odalara dön" ile açıkça çıkıldığında veya iki oyuncu da
+    // presence timeout olduğunda temizlenir.
     render();
     schedulePoll();
 })();
