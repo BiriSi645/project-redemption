@@ -84,6 +84,7 @@ $routes->group('', ['filter' => 'auth'], static function ($routes) {
     $routes->post('journal/(:num)/delete', 'Journal::delete/$1');
     $routes->get('timer', 'Timer::index');
     $routes->get('games', 'Games::index');
+    $routes->get('games/tetris', 'Games::tetris');
     $routes->get('games/snake', 'Games::snake');
     $routes->get('games/minesweeper', 'Games::minesweeper');
     $routes->get('games/sudoku', 'Games::sudoku');

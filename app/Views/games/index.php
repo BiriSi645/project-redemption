@@ -44,6 +44,15 @@
     .game-card.snake::after {
         content: '🐍'
     }
+    .game-card.tetris::after {
+        content: '▦'
+    }
+
+    .tetris .game-icon {
+        background: #ede9fe;
+        color: #6d28d9;
+        font-weight: 800
+    }
 
     .game-card.mines::after {
         content: '💣'
@@ -129,6 +138,20 @@
             ulaşın.</p><a class="button" href="<?= site_url(
         "games/snake",
     ) ?>">Oyunu aç</a>
+    </article>
+    <article class="game-card tetris">
+        <span class="game-icon" aria-hidden="true">▦</span>
+
+        <h2>Tetris</h2>
+
+        <p>
+            Blokları doğru yerleştirin, satırları temizleyin
+            ve seviye yükseldikçe artan hıza ayak uydurun.
+        </p>
+
+        <a class="button" href="<?= site_url('games/tetris') ?>">
+            Oyunu aç
+        </a>
     </article>
     <article class="game-card mines"><span class="game-icon" aria-hidden="true">💣</span>
         <h2>Mayın Tarlası</h2>

@@ -38,6 +38,28 @@ class Games extends BaseController
         ]);
     }
 
+    public function tetris(): string
+    {
+        $userId = (int) session()->get('user_id');
+
+        $scoreModel = new GameScoreModel();
+
+        return view('games/tetris', [
+            'title' => 'Tetris',
+            'userId' => $userId,
+            'personalBest' =>
+                $scoreModel->personalBest(
+                    $userId,
+                    'tetris',
+                    'default'
+                ) ?? 0,
+            'leaderboard' =>
+                $scoreModel->leaderboard(
+                    'tetris',
+                    'default'
+                ),
+        ]);
+    }
     public function minesweeper(): string
     {
         $userId = (int) session()->get('user_id');
@@ -189,10 +211,17 @@ class Games extends BaseController
             && $score >= 1
             && $score <= 86400;
 
+        $validTetris =
+            $game === 'tetris'
+            && $difficulty === 'default'
+            && $score !== false
+            && $score >= 0
+            && $score <= 100000000;
         if (
             ! $validSnake
             && ! $validMines
             && ! $validSudoku
+            && ! $validTetris
         ) {
             return $this->response
                 ->setStatusCode(422)

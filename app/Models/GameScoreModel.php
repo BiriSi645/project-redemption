@@ -16,8 +16,18 @@ class GameScoreModel extends Model
     public function recordBest(int $userId, string $game, string $difficulty, int $score): array
     {
         $current = $this->where('user_id', $userId)->where('game', $game)->where('difficulty', $difficulty)->first();
+        $higherIsBetter = in_array(
+            $game,
+            ['snake', 'tetris'],
+            true
+        );
+
         $improved = $current === null
-            || ($game === 'snake' ? $score > (int) $current['score'] : $score < (int) $current['score']);
+            || (
+                $higherIsBetter
+                    ? $score > (int) $current['score']
+                    : $score < (int) $current['score']
+            );
 
         if ($improved) {
             $data = ['user_id' => $userId, 'game' => $game, 'difficulty' => $difficulty, 'score' => $score];
@@ -37,7 +47,12 @@ class GameScoreModel extends Model
             ->join('users', 'users.id = game_scores.user_id')
             ->where('game_scores.game', $game)
             ->where('game_scores.difficulty', $difficulty)
-            ->orderBy('game_scores.score', $game === 'snake' ? 'DESC' : 'ASC')
+            ->orderBy(
+                'game_scores.score',
+                in_array($game, ['snake', 'tetris'], true)
+                    ? 'DESC'
+                    : 'ASC'
+            )
             ->orderBy('game_scores.updated_at', 'ASC')
             ->limit($limit)
             ->findAll();
