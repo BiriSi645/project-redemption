@@ -46,6 +46,14 @@ foreach ($vercelConfig as $key => $value) {
     $_SERVER[$key] = $value;
 }
 
+// Vercel terminates TLS before forwarding the request to the PHP runtime.
+// CodeIgniter otherwise sees that internal hop as HTTP and refuses to send
+// production Secure cookies, turning every authenticated response into a 500.
+if (getenv('VERCEL')) {
+    $_SERVER['HTTPS'] = 'on';
+    $_SERVER['SERVER_PORT'] = '443';
+}
+
 $writablePath = sys_get_temp_dir() . '/project-redemption-writable';
 
 foreach (['cache', 'debugbar', 'logs', 'session', 'uploads'] as $directory) {
