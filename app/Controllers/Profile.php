@@ -37,11 +37,17 @@ class Profile extends BaseController
             return redirect()->back()->with('errors', ['password'=>'Yeni şifre en az '.PasswordPolicy::MIN_LENGTH.' karakter olmalı ve tekrarıyla eşleşmelidir.']);
         }
 
+        $authVersion = (int) ($user['auth_version'] ?? 1) + 1;
+
         (new UserModel())->skipValidation(true)->update($userId, [
             'password_hash' => password_hash($password, PASSWORD_DEFAULT),
+            'auth_version' => $authVersion,
             'password_reset_token' => null,
             'password_reset_expires_at' => null,
         ]);
+
+        cache()->delete('auth_user_' . $userId);
+        session()->set('auth_version', $authVersion);
 
         return redirect()->to(site_url('profile'))->with('success', 'Şifreniz değiştirildi.');
     }

@@ -13,5 +13,7 @@ final class ProfilePasswordSecurityTest extends CIUnitTestCase
 
         $this->assertStringContainsString("'password_reset_token' => null", $method);
         $this->assertStringContainsString("'password_reset_expires_at' => null", $method);
+        $this->assertStringContainsString("'auth_version' => \$authVersion", $method);
+        $this->assertStringContainsString("session()->set('auth_version', \$authVersion)", $method);
     }
 }

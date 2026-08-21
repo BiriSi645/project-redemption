@@ -345,7 +345,9 @@ final class FourPlayerGameService
         if ($room['game'] === 'okey101' && isset($state['hands'])) {
             $state = $this->projectOkeyStateForSeat($state, (int) $current['seat_index']);
         }
-        if ($room['game'] === 'monopoly') $state['spaces'] = MonopolyEngine::spaces();
+        if ($room['game'] === 'monopoly') {
+            $state = $this->projectMonopolyState($state);
+        }
         return [
             'id' => (int) $room['id'], 'code' => $room['code'], 'game' => $room['game'],
             'status' => $room['status'], 'version' => (int) $room['version'],
@@ -415,6 +417,15 @@ final class FourPlayerGameService
         $state['deckCount'] = count($state['deck'] ?? []);
 
         unset($state['hands'], $state['deck']);
+
+        return $state;
+    }
+
+    private function projectMonopolyState(array $state): array
+    {
+        unset($state['chanceDeck'], $state['chestDeck']);
+
+        $state['spaces'] = MonopolyEngine::spaces();
 
         return $state;
     }

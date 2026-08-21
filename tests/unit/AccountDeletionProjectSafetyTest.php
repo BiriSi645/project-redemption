@@ -19,4 +19,21 @@ final class AccountDeletionProjectSafetyTest extends CIUnitTestCase
         $this->assertStringContainsString("project_members.status', 'accepted'", $method);
         $this->assertStringContainsString("project_members.user_id !=', \$userId", $method);
     }
+
+    public function testAdminDestroyChecksSharedProjectsBeforeHardDelete(): void
+    {
+        $source = file_get_contents(APPPATH . 'Controllers' . DIRECTORY_SEPARATOR . 'Admin.php');
+        $methodStart = strpos($source, 'public function destroy(int $id)');
+        $method = substr($source, $methodStart);
+
+        $projectGuard = strpos($method, "->table('projects')");
+        $userDelete = strpos($method, '->delete($id)');
+
+        $this->assertNotFalse($projectGuard);
+        $this->assertNotFalse($userDelete);
+        $this->assertLessThan($userDelete, $projectGuard);
+        $this->assertStringContainsString("projects.owner_id', \$id", $method);
+        $this->assertStringContainsString("project_members.status', 'accepted'", $method);
+        $this->assertStringContainsString("project_members.user_id !=', \$id", $method);
+    }
 }

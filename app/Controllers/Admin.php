@@ -220,6 +220,25 @@ class Admin extends BaseController
 
         $db = db_connect();
 
+        $sharedOwnedProjects = $db
+            ->table('projects')
+            ->select('projects.id, projects.name')
+            ->join('project_members', 'project_members.project_id = projects.id')
+            ->where('projects.owner_id', $id)
+            ->where('project_members.user_id !=', $id)
+            ->where('project_members.status', 'accepted')
+            ->groupBy(['projects.id', 'projects.name'])
+            ->get()
+            ->getResultArray();
+
+        if ($sharedOwnedProjects !== []) {
+            return redirect()
+                ->to(site_url('admin/users'))
+                ->with('errors', [
+                    'user' => 'Bu kullanıcı, başka üyeleri bulunan projelerin sahibi olduğu için silinemez. Ortak proje verilerini korumak için önce proje sahipliği devredilmelidir.',
+                ]);
+        }
+
         /*
         * Her şey ya silinsin ya hiçbir şey silinmesin.
         */

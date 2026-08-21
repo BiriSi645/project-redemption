@@ -42,6 +42,22 @@ final class FourPlayerGameServiceTest extends CIUnitTestCase
         $this->assertSame([22,21,21,21],$projected['handCounts']);
     }
 
+    public function testMonopolyProjectionNeverExposesCardDeckOrder(): void
+    {
+        $state = (new MonopolyEngine())->create([
+            ['display_name' => 'Oyuncu 1', 'player_type' => 'human'],
+            ['display_name' => 'Oyuncu 2', 'player_type' => 'human'],
+            ['display_name' => 'Oyuncu 3', 'player_type' => 'bot'],
+            ['display_name' => 'Oyuncu 4', 'player_type' => 'bot'],
+        ], []);
+        $method = new ReflectionMethod(FourPlayerGameService::class, 'projectMonopolyState');
+        $projected = $method->invoke(new FourPlayerGameService(), $state);
+
+        $this->assertArrayNotHasKey('chanceDeck', $projected);
+        $this->assertArrayNotHasKey('chestDeck', $projected);
+        $this->assertSame(MonopolyEngine::spaces(), $projected['spaces']);
+    }
+
     private function players(): array
     {
         return [

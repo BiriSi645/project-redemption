@@ -332,6 +332,7 @@ class Auth extends BaseController
                 'experience_points' => (int) (
                     $user['experience_points'] ?? 0
                 ),
+                'auth_version' => (int) ($user['auth_version'] ?? 1),
                 'logged_in' => true,
             ]);
 
@@ -1060,6 +1061,8 @@ class Auth extends BaseController
                         $password,
                         PASSWORD_DEFAULT
                     ),
+
+                    'auth_version' => (int) ($user['auth_version'] ?? 1) + 1,
 
                     'password_reset_token' => null,
                     'password_reset_expires_at' => null,

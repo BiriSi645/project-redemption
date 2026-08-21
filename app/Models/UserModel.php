@@ -34,6 +34,7 @@ class UserModel extends Model
         'email_verification_sent_at',
 
         'password_hash',
+        'auth_version',
         'password_reset_token',
         'password_reset_expires_at',
         'role',
