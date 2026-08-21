@@ -3,21 +3,13 @@
 declare(strict_types=1);
 
 $configuredBaseUrl = trim((string) (getenv('APP_BASE_URL') ?: ''));
-$vercelEnvironment = trim((string) (getenv('VERCEL_ENV') ?: ''));
-$vercelProductionUrl = trim((string) (getenv('VERCEL_PROJECT_PRODUCTION_URL') ?: ''));
 $vercelDeploymentUrl = trim((string) (getenv('VERCEL_URL') ?: ''));
 $releaseVersion = trim((string) (
     getenv('APP_VERSION')
     ?: getenv('VERCEL_GIT_COMMIT_SHA')
     ?: $vercelDeploymentUrl
 ));
-$baseUrl = $configuredBaseUrl;
-
-if ($baseUrl === '') {
-    $baseUrl = $vercelEnvironment === 'production' && $vercelProductionUrl !== ''
-        ? $vercelProductionUrl
-        : $vercelDeploymentUrl;
-}
+$baseUrl = $configuredBaseUrl !== '' ? $configuredBaseUrl : $vercelDeploymentUrl;
 
 if ($baseUrl !== '' && ! str_contains($baseUrl, '://')) {
     $baseUrl = 'https://' . $baseUrl;
@@ -35,7 +27,7 @@ if (
     || isset($parts['query'])
     || isset($parts['fragment'])
 ) {
-    throw new RuntimeException('Uygulama base URL değeri geçerli bir HTTPS adresi olmalıdır.');
+    throw new RuntimeException('APP_BASE_URL veya VERCEL_URL geçerli bir HTTPS adresi olmalıdır.');
 }
 
 $baseUrl = 'https://' . $parts['host']
