@@ -9,6 +9,7 @@ $routes->post('login', 'Auth::storeLogin');
 $routes->get('register', 'Auth::register');
 $routes->post('register', 'Auth::storeRegister');
 $routes->get('system/version', 'UpdateStatus::version');
+$routes->get('system/ping', 'UpdateStatus::ping');
 
 $routes->group('', ['filter' => 'auth'], static function ($routes) {
     $routes->post('logout', 'Auth::logout');

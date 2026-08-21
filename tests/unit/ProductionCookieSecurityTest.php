@@ -17,4 +17,14 @@ final class ProductionCookieSecurityTest extends CIUnitTestCase
 
         $this->assertSame('production', $config['env']['CI_ENVIRONMENT'] ?? null);
     }
+
+    public function testVercelTlsTerminationIsReportedToCodeIgniter(): void
+    {
+        $source = file_get_contents(ROOTPATH . 'api' . DIRECTORY_SEPARATOR . 'index.php');
+
+        $this->assertIsString($source);
+        $this->assertStringContainsString("if (getenv('VERCEL'))", $source);
+        $this->assertStringContainsString("\$_SERVER['HTTPS'] = 'on';", $source);
+        $this->assertStringContainsString("\$_SERVER['SERVER_PORT'] = '443';", $source);
+    }
 }

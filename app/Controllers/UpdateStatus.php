@@ -9,7 +9,19 @@ class UpdateStatus extends BaseController
     public function version()
     {
         return $this->response
-            ->setHeader('Cache-Control', 'no-store, no-cache, must-revalidate')
-            ->setJSON(['version' => (new CodeVersion())->current()]);
+            ->setHeader(
+                'Cache-Control',
+                'no-store, no-cache, must-revalidate'
+            )
+            ->setJSON([
+                'version' => (new CodeVersion())->current()
+            ]);
+    }
+
+    public function ping()
+    {
+        return $this->response
+            ->setHeader('Cache-Control', 'no-store')
+            ->setStatusCode(204);
     }
 }

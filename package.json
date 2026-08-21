@@ -6,6 +6,7 @@
     "node": ">=20"
   },
   "dependencies": {
+    "@vercel/functions": "^2.2.3",
     "mysql2": "^3.14.0",
     "ws": "^8.18.0"
   }

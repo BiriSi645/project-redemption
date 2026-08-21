@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { createServer } from 'node:http';
+import { attachDatabasePool } from '@vercel/functions';
 import mysql from 'mysql2/promise';
 import { WebSocket, WebSocketServer } from 'ws';
 
@@ -79,6 +80,7 @@ function getPool() {
         keepAliveInitialDelay: 0,
         ssl: databaseSslOptions(),
     });
+    attachDatabasePool(pool);
 
     return pool;
 }

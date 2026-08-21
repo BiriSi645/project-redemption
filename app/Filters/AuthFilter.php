@@ -9,6 +9,15 @@ use CodeIgniter\HTTP\ResponseInterface;
 
 class AuthFilter implements FilterInterface
 {
+    private const READ_ONLY_SESSION_PATHS = [
+        'messages/preview',
+        'notifications/preview',
+        'system/active-users',
+        'system/heartbeat',
+        'system/live-updates',
+        'system/realtime-token',
+    ];
+
     public function before(RequestInterface $request, $arguments = null)
     {
         if (! session()->get('logged_in') || ! session()->get('user_id')) {
@@ -36,6 +45,20 @@ class AuthFilter implements FilterInterface
 
         if (session()->get('role') !== $user['role']) {
             session()->set('role', $user['role']);
+        }
+
+        // Database sessions use a MySQL advisory lock. The dashboard starts
+        // several read-only requests at once, so keeping that lock until each
+        // controller finishes serializes the requests and can exhaust/timeout
+        // serverless Aiven connections. The session data remains readable
+        // after close(); only the database lock is released early.
+        $path = trim($request->getUri()->getPath(), '/');
+        $path = preg_replace('#^index\.php/?#', '', $path) ?? $path;
+        if (
+            strtoupper($request->getMethod()) === 'GET'
+            && in_array($path, self::READ_ONLY_SESSION_PATHS, true)
+        ) {
+            session()->close();
         }
 
         $presenceKey = 'presence_touch_' . $userId;
