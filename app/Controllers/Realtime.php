@@ -10,7 +10,12 @@ class Realtime extends BaseController
     public function token()
     {
         $userId = (int) session()->get('user_id');
-        if ($userId < 1 || ! session()->get('logged_in')) {
+        $loggedIn = (bool) session()->get('logged_in');
+        $username = (string) session()->get('username');
+
+        session_write_close();
+
+        if ($userId < 1 || ! $loggedIn) {
             return $this->response->setStatusCode(401)->setJSON([
                 'success' => false,
                 'message' => 'Oturum bulunamadı.',
@@ -20,7 +25,7 @@ class Realtime extends BaseController
         try {
             $token = (new RealtimeTokenService())->issue(
                 $userId,
-                (string) session()->get('username'),
+                $username,
                 120
             );
         } catch (RuntimeException $exception) {

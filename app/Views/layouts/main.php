@@ -1254,9 +1254,7 @@ $unreadMessageCount = (new \App\Models\DirectConversationModel())->unreadCount(
                         <button class="message-icon-button notification-icon-button" type="button"
                             aria-label="Bildirimleri aç" aria-expanded="false"
                             aria-controls="notification-popover" data-notification-button
-                            data-notification-nav data-preview-url="<?= site_url(
-                        "notifications/preview",
-                    ) ?>">
+                            data-notification-nav data-preview-url="/notifications/preview">
                             <span aria-hidden="true">🔔</span><?php if (
                             $unreadNotificationCount > 0
                         ): ?><span class="notification-badge"><?= $unreadNotificationCount > 99
@@ -1281,9 +1279,7 @@ $unreadMessageCount = (new \App\Models\DirectConversationModel())->unreadCount(
                     <div class="message-popover-wrap">
                         <button class="message-icon-button" type="button" aria-label="Mesajları aç"
                             aria-expanded="false" aria-controls="message-popover" data-message-nav
-                            data-preview-url="<?= site_url(
-                        "messages/preview",
-                    ) ?>">
+                            data-preview-url="/messages/preview">
                             <span aria-hidden="true">✉</span><?php if (
                             $unreadMessageCount > 0
                         ): ?><span class="notification-badge"><?= $unreadMessageCount > 99
@@ -1349,11 +1345,10 @@ $unreadMessageCount = (new \App\Models\DirectConversationModel())->unreadCount(
             </footer>
         </main>
     </div>
-    <div class="live-toast-stack" data-live-toast-stack data-status-url="<?= site_url(
-    "system/live-updates",
-) ?>" aria-live="polite" aria-atomic="false"></div>
-    <aside class="messenger-dock" data-messenger-dock data-preview-url="<?= site_url("messages/preview") ?>"
-        data-message-base="<?= site_url("messages") ?>" data-csrf-name="<?= csrf_token() ?>"
+    <div class="live-toast-stack" data-live-toast-stack data-status-url="/system/live-updates"
+        aria-live="polite" aria-atomic="false"></div>
+    <aside class="messenger-dock" data-messenger-dock data-preview-url="/messages/preview"
+        data-message-base="/messages" data-csrf-name="<?= csrf_token() ?>"
         data-csrf-hash="<?= csrf_hash() ?>">
         <button class="messenger-launcher" type="button" aria-label="Mesajları aç" aria-expanded="false"
             data-messenger-launcher><span aria-hidden="true">✉</span><?php if ($unreadMessageCount > 0): ?><span
