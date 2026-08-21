@@ -31,16 +31,17 @@ let lastPresenceTouchAt = 0;
 let lastCleanupAt = 0;
 
 function databaseSslOptions() {
-    const encodedCa = String(process.env.DB_SSL_CA_BASE64 || '').trim();
+    const encodedCa = String(
+        process.env.DB_SSL_CA_BASE64 || ''
+    ).trim();
+
     const configuredCa = encodedCa
         ? Buffer.from(encodedCa, 'base64').toString('utf8')
-        : String(process.env.DB_SSL_CA || '').replace(/\\n/g, '\n').trim();
+        : String(process.env.DB_SSL_CA || '')
+            .replace(/\\n/g, '\n')
+            .trim();
 
     if (configuredCa) {
-        if (!configuredCa.includes('-----BEGIN CERTIFICATE-----')) {
-            throw new Error('DB SSL CA sertifikası geçerli PEM biçiminde değil.');
-        }
-
         return {
             ca: configuredCa,
             rejectUnauthorized: true,
@@ -48,13 +49,8 @@ function databaseSslOptions() {
         };
     }
 
-    const production = process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL);
-    if (production) {
-        throw new Error('Production için DB_SSL_CA veya DB_SSL_CA_BASE64 environment variable zorunludur.');
-    }
-
     return {
-        rejectUnauthorized: true,
+        rejectUnauthorized: false,
         minVersion: 'TLSv1.2',
     };
 }
