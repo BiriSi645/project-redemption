@@ -33,8 +33,13 @@ class DirectMessageModel extends Model
             return $eventData;
         }
 
-        (new RealtimePublisher())->user(
+        $recipientIds = array_values(array_filter(
             [(int) $conversation['user_one_id'], (int) $conversation['user_two_id']],
+            static fn (int $id): bool => $id > 0
+        ));
+
+        (new RealtimePublisher())->user(
+            $recipientIds,
             'direct-message',
             [
                 'messageId' => (int) ($eventData['id'] ?? 0),

@@ -368,7 +368,7 @@
                 type="password"
                 name="password"
                 autocomplete="new-password"
-                minlength="8"
+                minlength="<?= \App\Libraries\PasswordPolicy::MIN_LENGTH ?>"
                 required
             >
 
@@ -381,7 +381,7 @@
                 type="password"
                 name="password_confirm"
                 autocomplete="new-password"
-                minlength="8"
+                minlength="<?= \App\Libraries\PasswordPolicy::MIN_LENGTH ?>"
                 required
             >
 
@@ -444,7 +444,8 @@
 
         <p>
             Bu işlem notlarınızı, görevlerinizi
-            ve günlüklerinizi kalıcı olarak siler.
+            ve günlüklerinizi kalıcı olarak siler. Gönderdiğiniz mesajlar,
+            diğer katılımcıların konuşma geçmişinde “Silinmiş kullanıcı” adıyla korunur.
         </p>
 
         <form
@@ -453,7 +454,7 @@
                 "profile/delete"
             ) ?>"
             onsubmit="return confirm(
-                'Hesabınız ve tüm kişisel verileriniz kalıcı olarak silinsin mi?'
+                'Hesabınız silinsin mi? Diğer kullanıcıların konuşma geçmişindeki mesajlarınız korunacaktır.'
             )"
         >
             <?= csrf_field() ?>

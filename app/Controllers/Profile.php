@@ -10,6 +10,7 @@ use App\Models\HabitModel;
 use App\Models\HabitCompletionModel;
 use App\Models\NoteCommentModel;
 use App\Models\GameScoreModel;
+use App\Libraries\PasswordPolicy;
 
 class Profile extends BaseController
 {
@@ -32,11 +33,15 @@ class Profile extends BaseController
             return redirect()->back()->with('errors', ['current_password'=>'Mevcut şifre hatalı.']);
         }
 
-        if (strlen($password) < 8 || $password !== (string) $this->request->getPost('password_confirm')) {
-            return redirect()->back()->with('errors', ['password'=>'Yeni şifre en az 8 karakter olmalı ve tekrarıyla eşleşmelidir.']);
+        if (! PasswordPolicy::accepts($password) || $password !== (string) $this->request->getPost('password_confirm')) {
+            return redirect()->back()->with('errors', ['password'=>'Yeni şifre en az '.PasswordPolicy::MIN_LENGTH.' karakter olmalı ve tekrarıyla eşleşmelidir.']);
         }
 
-        (new UserModel())->skipValidation(true)->update($userId, ['password_hash'=>password_hash($password, PASSWORD_DEFAULT)]);
+        (new UserModel())->skipValidation(true)->update($userId, [
+            'password_hash' => password_hash($password, PASSWORD_DEFAULT),
+            'password_reset_token' => null,
+            'password_reset_expires_at' => null,
+        ]);
 
         return redirect()->to(site_url('profile'))->with('success', 'Şifreniz değiştirildi.');
     }
@@ -566,8 +571,8 @@ class Profile extends BaseController
 
         log_message(
             'error',
-            'E-posta değişikliği doğrulama kodu gönderilemedi: '
-            . $email->printDebugger([])
+            'E-posta değişikliği doğrulama kodu gönderilemedi. User ID: {userId}',
+            ['userId' => (int) ($user['id'] ?? 0)]
         );
 
         return false;
@@ -694,9 +699,47 @@ class Profile extends BaseController
             return redirect()->back()->with('errors', ['delete'=>'Sistemdeki son aktif admin hesabı silinemez.']);
         }
 
-        (new UserModel())->delete($userId);
+        $db = db_connect();
+        $sharedOwnedProjects = $db
+            ->table('projects')
+            ->select('projects.id, projects.name')
+            ->join('project_members', 'project_members.project_id = projects.id')
+            ->where('projects.owner_id', $userId)
+            ->where('project_members.user_id !=', $userId)
+            ->where('project_members.status', 'accepted')
+            ->groupBy(['projects.id', 'projects.name'])
+            ->get()
+            ->getResultArray();
+
+        if ($sharedOwnedProjects !== []) {
+            return redirect()->back()->with('errors', [
+                'delete' => 'Başka üyeleri bulunan projelerin sahibisiniz. Ortak proje verilerinin silinmemesi için önce bu projelerin sahipliğini devretmelisiniz.',
+            ]);
+        }
+
+        $db->transStart();
+
+        $db->table('audit_logs')->where('user_id', $userId)->delete();
+        $db->table('notifications')
+            ->groupStart()
+                ->where('user_id', $userId)
+                ->orWhere('actor_user_id', $userId)
+            ->groupEnd()
+            ->delete();
+
+        (new UserModel())->skipValidation(true)->delete($userId);
+        $db->transComplete();
+
+        if (! $db->transStatus()) {
+            return redirect()->back()->with('errors', [
+                'delete' => 'Hesabınız silinirken bir hata oluştu.',
+            ]);
+        }
+
+        cache()->delete('auth_user_' . $userId);
+        cache()->delete('admin_dashboard_summary_v1');
         session()->destroy();
 
-        return redirect()->to(site_url('login'))->with('success', 'Hesabınız ve kişisel verileriniz silindi.');
+        return redirect()->to(site_url('login'))->with('success', 'Hesabınız silindi. Diğer kullanıcıların konuşma geçmişindeki mesajlarınız korunur.');
     }
 }

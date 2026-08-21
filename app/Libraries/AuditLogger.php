@@ -9,6 +9,7 @@ class AuditLogger
     public static function record(?int $userId, string $action, string $description, string $method, string $path, int $statusCode = 200): void
     {
         try {
+            $path = self::sanitizePath($path);
             (new AuditLogModel())->insert([
                 'user_id' => $userId ?: null,
                 'action' => mb_substr($action, 0, 80),
@@ -27,7 +28,9 @@ class AuditLogger
 
     public static function describePath(string $path): array
     {
+        $path = self::sanitizePath($path);
         $rules = [
+            '#^reset-password/\[REDACTED\]$#' => ['auth.password_reset_submit', 'Şifre sıfırlama formu gönderildi'],
             '#^messages/start/\d+$#' => ['message.start', 'Özel konuşma başlatıldı'],
             '#^messages/\d+/send$#' => ['message.send', 'Özel mesaj gönderildi'],
             '#^messages/\d+/delete/\d+$#' => ['message.delete', 'Özel mesaj kullanıcının görünümünden silindi'],
@@ -65,5 +68,13 @@ class AuditLogger
         }
 
         return ['system.post', 'Bir form işlemi gerçekleştirildi'];
+    }
+
+    public static function sanitizePath(string $path): string
+    {
+        $path = trim($path, '/');
+        $path = preg_replace('#^index\.php/?#i', '', $path) ?? $path;
+
+        return preg_replace('#^reset-password/[^/]+$#i', 'reset-password/[REDACTED]', $path) ?? $path;
     }
 }

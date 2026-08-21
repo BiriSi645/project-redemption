@@ -16,13 +16,11 @@
         <div><a class="chat-back" href="<?= site_url(
         "messages",
     ) ?>">← Mesajlar</a>
-            <h1><a href="<?= site_url("users/" . $otherUser["id"]) ?>"><?= esc(
-    $otherUser["username"],
-) ?></a></h1><small><?= (int) $otherUser["is_active"] === 1
+            <h1><?php if ($otherUser["id"] !== null): ?><a href="<?= site_url("users/" . $otherUser["id"]) ?>"><?= esc($otherUser["username"]) ?></a><?php else: ?><?= esc($otherUser["username"]) ?><?php endif; ?></h1><small><?= (int) $otherUser["is_active"] === 1
     ? "Aktif hesap"
-    : "Devre dışı hesap" ?></small>
+    : ($otherUser["id"] === null ? "Hesap silindi" : "Devre dışı hesap") ?></small>
         </div>
-        <div class="chat-user-actions"><?php if (
+        <?php if ($otherUser["id"] !== null): ?><div class="chat-user-actions"><?php if (
     $blockedByMe
 ): ?><form method="post" action="<?= site_url(
     "messages/unblock/" . $otherUser["id"],
@@ -31,7 +29,7 @@
     "messages/block/" . $otherUser["id"],
 ) ?>" onsubmit="return confirm('Bu kullanıcı engellensin mi? Artık birbirinize mesaj gönderemeyeceksiniz.')">
                 <?= csrf_field() ?><button class="button danger" type="submit">Engelle</button>
-            </form><?php endif; ?></div>
+            </form><?php endif; ?></div><?php endif; ?>
     </header>
 
     <div class="chat-list" id="chat-list" aria-live="polite">

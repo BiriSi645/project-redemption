@@ -1,7 +1,7 @@
 <aside class="game-leaderboard">
     <div class="leaderboard-head"><span aria-hidden="true">🏆</span>
         <div>
-            <h2>En İyi 3</h2>
+            <h2>Casual İlk 3</h2>
             <p id="game-leaderboard-subtitle"><?= esc(
         $subtitle,
     ) ?></p>
@@ -23,5 +23,5 @@
 ?></strong></li>
         <?php endforeach;endif; ?>
     </ol>
-    <p class="leaderboard-note">Yalnızca her oyuncunun en iyi sonucu gösterilir.</p>
+    <p class="leaderboard-note">Skorlar tarayıcı tarafından bildirilir ve sunucu tarafından doğrulanmaz. Yalnızca eğlence amaçlıdır.</p>
 </aside>

@@ -56,7 +56,8 @@ class Messages extends BaseController
         $conversationIds = array_map('intval', array_column($conversations, 'id'));
         if ($conversationIds !== []) {
             (new DirectMessageModel())->whereIn('conversation_id', $conversationIds)
-                ->where('sender_id !=', $userId)->where('read_at', null)
+                ->groupStart()->where('sender_id !=', $userId)->orWhere('sender_id', null)->groupEnd()
+                ->where('read_at', null)
                 ->set(['read_at' => date('Y-m-d H:i:s')])->update();
         }
 
@@ -103,8 +104,8 @@ class Messages extends BaseController
         $hasOlder = count($messages) > 100;
         if ($hasOlder) array_pop($messages);
         $messages = array_reverse($messages);
-        $blockedByMe = (new UserBlockModel())->where(['blocker_id'=>$userId,'blocked_id'=>$other['id']])->first() !== null;
-        $blockedByOther = (new UserBlockModel())->where(['blocker_id'=>$other['id'],'blocked_id'=>$userId])->first() !== null;
+        $blockedByMe = $other['id'] !== null && (new UserBlockModel())->where(['blocker_id'=>$userId,'blocked_id'=>$other['id']])->first() !== null;
+        $blockedByOther = $other['id'] !== null && (new UserBlockModel())->where(['blocker_id'=>$other['id'],'blocked_id'=>$userId])->first() !== null;
 
         return view('messages/show', [
             'title' => $other['username'] . ' ile mesajlar',
@@ -222,7 +223,13 @@ class Messages extends BaseController
         if (! $conversation || ((int) $conversation['user_one_id'] !== $userId && (int) $conversation['user_two_id'] !== $userId)) {
             throw PageNotFoundException::forPageNotFound('Konuşma bulunamadı.');
         }
-        $otherId = (int) $conversation['user_one_id'] === $userId ? (int) $conversation['user_two_id'] : (int) $conversation['user_one_id'];
+        $rawOtherId = (int) $conversation['user_one_id'] === $userId
+            ? $conversation['user_two_id']
+            : $conversation['user_one_id'];
+        if ($rawOtherId === null) {
+            return [$conversation, ['id'=>null, 'username'=>'Silinmiş kullanıcı', 'is_active'=>0, 'deleted'=>true]];
+        }
+        $otherId = (int) $rawOtherId;
         $other = (new UserModel())->select('id,username,is_active')->find($otherId);
         if (! $other) throw PageNotFoundException::forPageNotFound('Kullanıcı bulunamadı.');
         return [$conversation, $other];
@@ -233,13 +240,17 @@ class Messages extends BaseController
         return db_connect()->table('direct_messages')->where('conversation_id', $conversationId)
             ->groupStart()
                 ->groupStart()->where('sender_id', $userId)->where('deleted_by_sender', 0)->groupEnd()
-                ->orGroupStart()->where('sender_id !=', $userId)->where('deleted_by_recipient', 0)->groupEnd()
+                ->orGroupStart()
+                    ->groupStart()->where('sender_id !=', $userId)->orWhere('sender_id', null)->groupEnd()
+                    ->where('deleted_by_recipient', 0)
+                ->groupEnd()
             ->groupEnd();
     }
 
     private function markRead(int $conversationId, int $userId): void
     {
-        (new DirectMessageModel())->where('conversation_id', $conversationId)->where('sender_id !=', $userId)
+        (new DirectMessageModel())->where('conversation_id', $conversationId)
+            ->groupStart()->where('sender_id !=', $userId)->orWhere('sender_id', null)->groupEnd()
             ->where('read_at', null)->set(['read_at'=>date('Y-m-d H:i:s')])->update();
     }
 

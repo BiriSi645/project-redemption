@@ -2,6 +2,9 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "regions": ["fra1"],
   "fluid": true,
+  "env": {
+    "CI_ENVIRONMENT": "production"
+  },
   "functions": {
     "api/index.php": {
       "runtime": "vercel-php@0.6.2",

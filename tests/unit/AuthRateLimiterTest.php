@@ -1,7 +1,7 @@
 <?php
 
 use App\Libraries\AuthRateLimiter;
-use CodeIgniter\Cache\CacheInterface;
+use App\Libraries\AuthRateLimitStore;
 use CodeIgniter\Test\CIUnitTestCase;
 
 final class AuthRateLimiterTest extends CIUnitTestCase
@@ -38,20 +38,20 @@ final class AuthRateLimiterTest extends CIUnitTestCase
 
     private function limiter(): array
     {
-        $values = [];
-        $cache = $this->createMock(CacheInterface::class);
-        $cache->method('get')->willReturnCallback(static function (string $key) use (&$values): mixed {
-            return $values[$key] ?? null;
-        });
-        $cache->method('save')->willReturnCallback(static function (string $key, mixed $value, int $ttl) use (&$values): bool {
-            $values[$key] = $value;
-            return true;
-        });
-        $cache->method('delete')->willReturnCallback(static function (string $key) use (&$values): bool {
-            unset($values[$key]);
-            return true;
-        });
+        $store = new class implements AuthRateLimitStore {
+            public array $values = [];
 
-        return [new AuthRateLimiter($cache, 300), &$values];
+            public function increment(string $key, int $windowSeconds): int
+            {
+                return $this->values[$key] = ($this->values[$key] ?? 0) + 1;
+            }
+
+            public function delete(string $key): void
+            {
+                unset($this->values[$key]);
+            }
+        };
+
+        return [new AuthRateLimiter($store, 300), &$store->values];
     }
 }

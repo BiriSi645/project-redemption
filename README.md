@@ -1,69 +1,181 @@
-# CodeIgniter 4 Application Starter
+# Project Redemption
 
-## What is CodeIgniter?
+Project Redemption; kişisel üretkenlik, sosyal paylaşım, proje yönetimi ve çok oyunculu oyunları tek bir CodeIgniter 4 uygulamasında birleştiren web platformudur.
 
-CodeIgniter is a PHP full-stack web framework that is light, fast, flexible and secure.
-More information can be found at the [official site](https://codeigniter.com).
+Uygulama PHP 8.2 ve MySQL üzerinde çalışır. Ana uygulama ve genel WebSocket servisi Vercel'de, otoriter online Snake sunucusu Render'da, production veritabanı ise Aiven MySQL'de çalışacak şekilde yapılandırılmıştır.
 
-This repository holds a composer-installable app starter.
-It has been built from the
-[development repository](https://github.com/codeigniter4/CodeIgniter4).
+## Öne çıkan özellikler
 
-More information about the plans for version 4 can be found in [CodeIgniter 4](https://forum.codeigniter.com/forumdisplay.php?fid=28) on the forums.
+- E-posta doğrulamalı kayıt, giriş, profil ve güvenli şifre sıfırlama
+- Kullanıcıya özel görevler, günlükler, alışkanlık takibi ve takvim hatırlatıcıları
+- Public/private notlar, yorumlar, kullanıcı etiketleme ve bildirimler
+- Özel mesajlaşma ve sayfa üzerinden açılan Messenger benzeri sohbet paneli
+- Proje üyeleri, davetler, görev atamaları, bölümler ve Gantt görünümü
+- Seviye/deneyim sistemi, aktif kullanıcılar ve liderlik alanları
+- Kronometre, zamanlayıcı ve sesli yazma
+- Çevrimdışı Sudoku, Mayın Tarlası, Snake ve Tetris
+- Online Sudoku, Mayın Tarlası, Snake, 101 Okey ve Monopoly
+- Kullanıcı, toplu bildirim ve audit log yönetimi için admin paneli
+- Sistem/açık/koyu tema ve responsive navigasyon
 
-You can read the [user guide](https://codeigniter.com/user_guide/)
-corresponding to the latest version of the framework.
+## Teknoloji yığını
 
-## Installation & updates
+- Backend: PHP 8.2+, CodeIgniter 4.7
+- Veritabanı: MySQL/MariaDB
+- Frontend: server-rendered PHP view'ları ve vanilla JavaScript
+- Genel realtime: Vercel WebSocket function, Node.js, `ws`, `mysql2`
+- Online Snake: Render üzerinde ayrı Node.js WebSocket servisi
+- Test: PHPUnit 10
 
-`composer create-project codeigniter4/appstarter` then `composer update` whenever
-there is a new release of the framework.
+## Realtime mimarisi
 
-When updating, check the release notes to see if there are any changes you might need to apply
-to your `app` folder. The affected files can be copied or merged from
-`vendor/codeigniter4/framework/app`.
+Repoda iki aktif WebSocket sunucusu vardır ve görevleri farklıdır:
 
-## Setup
+| Dosya | Ortam | Sorumluluk |
+| --- | --- | --- |
+| `api/ws.js` | Vercel Fluid Compute | Mesaj, bildirim, presence ve Sudoku/Mayın Tarlası/Okey/Monopoly oda olayları |
+| `snake-server/server.js` | Render | Online Snake için merkezi game loop, yönler, çarpışmalar ve authoritative state |
 
-Copy `env` to `.env` and tailor for your app, specifically the baseURL
-and any database settings.
+Ana PHP uygulaması olayları `realtime_events` tablosuna yazar. `api/ws.js` bu tabloyu okuyup ilgili kullanıcılara yayınlar; kritik uygulama durumu WebSocket process belleğinde tutulmaz. WebSocket bağlıyken oyun polling'i kapalıdır. Bağlantı koparsa istemci tek bir 8 saniyelik fallback polling başlatır ve bağlantı geri gelince durdurur.
 
-## Important Change with index.php
+Online Snake ayrı servis kullanır çünkü hareket döngüsü serverless HTTP veya veritabanı polling'ine bağlı olmamalıdır. Render servisi [`render.yaml`](render.yaml) ile deploy edilir; ayrıntılar [`snake-server/README.md`](snake-server/README.md) içindedir.
 
-`index.php` is no longer in the root of the project! It has been moved inside the *public* folder,
-for better security and separation of components.
+Eski PHP/Workerman WebSocket prototipi kaldırılmıştır. Production genel realtime giriş noktası yalnızca `api/ws.js` dosyasıdır.
 
-This means that you should configure your web server to "point" to your project's *public* folder, and
-not to the project root. A better practice would be to configure a virtual host to point there. A poor practice would be to point your web server to the project root and expect to enter *public/...*, as the rest of your logic and the
-framework are exposed.
+## Yerel kurulum
 
-**Please** read the user guide for a better explanation of how CI4 works!
+Gereksinimler:
 
-## Repository Management
+- PHP 8.2+ (`intl`, `mbstring`, `mysqli`, `curl`)
+- Composer 2
+- MySQL veya MariaDB
+- Node.js 20+ (WebSocket fonksiyonunu yerelde geliştirecekseniz)
 
-We use GitHub issues, in our main repository, to track **BUGS** and to track approved **DEVELOPMENT** work packages.
-We use our [forum](http://forum.codeigniter.com) to provide SUPPORT and to discuss
-FEATURE REQUESTS.
+Kurulum:
 
-This repository is a "distribution" one, built by our release preparation script.
-Problems with it can be raised on our forum, or as issues in the main repository.
+```powershell
+git clone <repository-url>
+cd project-redemption
+Copy-Item env .env
+C:\xampp\php\php.exe composer.phar install
+```
 
-## Server Requirements
+`.env` içinde en az aşağıdaki CodeIgniter ayarlarını yapılandırın:
 
-PHP version 8.2 or higher is required, with the following extensions installed:
+```dotenv
+CI_ENVIRONMENT = development
+app.baseURL = 'http://localhost:8080/'
 
-- [intl](http://php.net/manual/en/intl.requirements.php)
-- [mbstring](http://php.net/manual/en/mbstring.installation.php)
+database.default.hostname = localhost
+database.default.database = project_redemption
+database.default.username = root
+database.default.password =
+database.default.DBDriver = MySQLi
+database.default.port = 3306
 
-> [!WARNING]
-> - The end of life date for PHP 7.4 was November 28, 2022.
-> - The end of life date for PHP 8.0 was November 26, 2023.
-> - The end of life date for PHP 8.1 was December 31, 2025.
-> - If you are still using below PHP 8.2, you should upgrade immediately.
-> - The end of life date for PHP 8.2 will be December 31, 2026.
+REALTIME_SECRET = replace-with-at-least-32-random-characters
+```
 
-Additionally, make sure that the following extensions are enabled in your PHP:
+Veritabanını hazırlayıp uygulamayı başlatın:
 
-- json (enabled by default - don't turn it off)
-- [mysqlnd](http://php.net/manual/en/mysqlnd.install.php) if you plan to use MySQL
-- [libcurl](http://php.net/manual/en/curl.requirements.php) if you plan to use the HTTP\CURLRequest library
+```powershell
+C:\xampp\php\php.exe spark migrate
+C:\xampp\php\php.exe spark serve
+```
+
+Uygulama varsayılan olarak `http://localhost:8080` adresinde açılır. Genel WebSocket yerelde çalışmıyorsa mesaj ve oyun state güncellemeleri fallback mekanizmasıyla çalışmaya devam eder.
+
+## Vercel deployment
+
+[`vercel.json`](vercel.json) iki function tanımlar:
+
+- `api/index.php`: CodeIgniter uygulaması
+- `api/ws.js`: genel WebSocket servisi
+
+Vercel'de hem PHP uygulamasının `database.default.*` değerleri hem de Node WebSocket fonksiyonunun aşağıdaki değerleri tanımlanmalıdır:
+
+```text
+DB_HOST
+DB_PORT
+DB_DATABASE
+DB_USERNAME
+DB_PASSWORD
+REALTIME_SECRET
+DB_SSL_CA_BASE64
+```
+
+`REALTIME_SECRET`, PHP ve her iki Node WebSocket servisi için aynı olmalı ve en az 32 karakterlik rastgele bir değer olmalıdır.
+
+Production'da `api/ws.js` veritabanı sertifikasını doğrular. Aiven'in `ca.pem` dosyasını Base64'e çevirmek için:
+
+```powershell
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\path\to\ca.pem"))
+```
+
+Çıktıyı Vercel'de `DB_SSL_CA_BASE64` olarak kaydedin. Sertifika olmadan production WebSocket servisi bilinçli olarak DB bağlantısı açmaz.
+
+Production/custom domain için Vercel'de `APP_BASE_URL=https://example.com/` tanımlayın. Bunu yalnızca Production ortamına uygulayın; Preview deployment'lar Vercel'in sağladığı `VERCEL_URL` değerini otomatik kullanır.
+
+Kod sürümü production'da sırasıyla `APP_VERSION`, `VERCEL_GIT_COMMIT_SHA` veya deployment'a özel `VERCEL_URL` üzerinden belirlenir. Normal Vercel Git deployment'ında ayrıca ayar gerekmez; Git dışı deployment kullanıyorsanız `APP_VERSION` değerini her yayında değişen release/commit kimliği olarak tanımlayın.
+
+## Online Snake deployment
+
+Render Blueprint için [`render.yaml`](render.yaml) kullanılır. Gerekli secret/env değerleri:
+
+```text
+DB_HOST
+DB_PORT
+DB_DATABASE
+DB_USERNAME
+DB_PASSWORD
+DB_SSL_CA_BASE64
+REALTIME_SECRET
+ALLOWED_ORIGINS
+```
+
+Render servis URL'si Vercel/PHP ortamında `SNAKE_WEBSOCKET_URL` olarak tanımlanmalıdır. Örnek: `wss://project-redemption-snake.onrender.com`.
+
+## Test ve kalite kontrolleri
+
+Tüm testleri çalıştırmak için:
+
+```powershell
+C:\xampp\php\php.exe vendor\bin\phpunit
+```
+
+JavaScript sözdizimi kontrolleri:
+
+```powershell
+node --check api/ws.js
+node --check snake-server/server.js
+```
+
+Test paketi authentication güvenliği, deadline/notification kuralları, oyun motorları, bot zinciri, rematch ve session lock davranışlarını kapsar.
+
+## Yararlı bakım komutları
+
+```powershell
+# Migration durumu ve yeni migration'lar
+C:\xampp\php\php.exe spark migrate:status
+C:\xampp\php\php.exe spark migrate
+
+# Eski audit loglarını temizle
+C:\xampp\php\php.exe spark logs:prune --days 180
+
+# Eski oyun odalarını temizle
+C:\xampp\php\php.exe spark games:prune-rooms
+```
+
+## Güvenlik notları
+
+- Parolalar `password_hash()` ile saklanır ve yeni parolalarda minimum 10 karakter aranır.
+- E-posta doğrulama kodları hash'li, reset tokenları SHA-256 hash'li tutulur.
+- Login sonrası session ID yenilenir ve authentication endpointlerinde rate limiting uygulanır.
+- E-posta debugger çıktısı loglanmaz; reset tokenları ve doğrulama kodları loglara yazılmaz.
+- State-changing formlar CSRF korumalıdır.
+- Kullanıcıya özel içerik kontrolleri controller/service katmanında uygulanır.
+- Secret, parola, CA ve production `.env` değerleri repoya commit edilmemelidir.
+
+## Lisans
+
+Bu proje [`LICENSE`](LICENSE) dosyasındaki MIT lisansı altında sunulur.

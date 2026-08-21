@@ -27,6 +27,8 @@ services:
         sync: false
       - key: DB_SSL
         value: "true"
+      - key: DB_SSL_CA_BASE64
+        sync: false
       - key: SNAKE_STEP_MS
         value: "180"
       - key: SNAKE_GRID

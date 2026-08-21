@@ -57,6 +57,8 @@ $routes->group('', ['filter' => 'auth'], static function ($routes) {
     $routes->post('calendar/reminders/(:num)/delete', 'Calendar::deleteReminder/$1');
     $routes->get('profile', 'Profile::index');
     $routes->post('profile', 'Profile::update');
+    $routes->post('profile/email/request', 'Profile::requestEmailChange');
+    $routes->post('profile/email/verify', 'Profile::verifyEmailChange');
     $routes->post('profile/password', 'Profile::password');
     $routes->get('profile/export/(:alpha)', 'Profile::export/$1');
     $routes->post('profile/delete', 'Profile::delete');
@@ -88,6 +90,7 @@ $routes->group('', ['filter' => 'auth'], static function ($routes) {
     $routes->get('games/snake', 'Games::snake');
     $routes->get('games/minesweeper', 'Games::minesweeper');
     $routes->get('games/sudoku', 'Games::sudoku');
+    $routes->get('games/sudoku/puzzle/(:segment)', 'Games::sudokuPuzzle/$1');
     $routes->post('games/score', 'Games::saveScore');
     $routes->get('games/multiplayer', 'GameRooms::lobby');
     $routes->post('games/multiplayer/create', 'GameRooms::create');

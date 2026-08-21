@@ -30,6 +30,35 @@ let scanInFlight = false;
 let lastPresenceTouchAt = 0;
 let lastCleanupAt = 0;
 
+function databaseSslOptions() {
+    const encodedCa = String(process.env.DB_SSL_CA_BASE64 || '').trim();
+    const configuredCa = encodedCa
+        ? Buffer.from(encodedCa, 'base64').toString('utf8')
+        : String(process.env.DB_SSL_CA || '').replace(/\\n/g, '\n').trim();
+
+    if (configuredCa) {
+        if (!configuredCa.includes('-----BEGIN CERTIFICATE-----')) {
+            throw new Error('DB SSL CA sertifikası geçerli PEM biçiminde değil.');
+        }
+
+        return {
+            ca: configuredCa,
+            rejectUnauthorized: true,
+            minVersion: 'TLSv1.2',
+        };
+    }
+
+    const production = process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL);
+    if (production) {
+        throw new Error('Production için DB_SSL_CA veya DB_SSL_CA_BASE64 environment variable zorunludur.');
+    }
+
+    return {
+        rejectUnauthorized: true,
+        minVersion: 'TLSv1.2',
+    };
+}
+
 function getPool() {
     if (pool) return pool;
 
@@ -52,9 +81,7 @@ function getPool() {
         queueLimit: 0,
         enableKeepAlive: true,
         keepAliveInitialDelay: 0,
-        ssl: {
-            rejectUnauthorized: false,
-        },
+        ssl: databaseSslOptions(),
     });
 
     return pool;

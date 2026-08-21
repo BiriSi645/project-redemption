@@ -242,10 +242,17 @@ class Games extends BaseController
                     (int) $score
                 );
 
-        return $this->response->setJSON(
-            [
-                'success' => true,
-            ] + $result
-        );
+        // These games currently run entirely in the browser. The submitted
+        // result therefore cannot be treated as a server-verified competitive
+        // score, even after range validation.
+        return $this->response
+            ->setHeader('X-Score-Verification', GameScoreModel::VERIFICATION)
+            ->setJSON(
+                [
+                    'success' => true,
+                    'verification' => GameScoreModel::VERIFICATION,
+                    'competitive' => false,
+                ] + $result
+            );
     }
 }

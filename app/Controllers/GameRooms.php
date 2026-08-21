@@ -101,20 +101,65 @@ class GameRooms extends BaseController
 
     public function fourPlayerState(string $code)
     {
-        try{return $this->response->setJSON(['success'=>true,'room'=>(new FourPlayerGameService())->getForPlayer($code,(int)session()->get('user_id'))]);}
-        catch(RuntimeException $e){return $this->response->setStatusCode(403)->setJSON(['success'=>false,'message'=>$e->getMessage()]);}
+        try {
+            $userId = (int) session()->get('user_id');
+            session_write_close();
+
+            return $this->response->setJSON([
+                'success' => true,
+                'room' => (new FourPlayerGameService())->getForPlayer($code, $userId),
+            ]);
+        } catch (RuntimeException $e) {
+            return $this->response->setStatusCode(403)->setJSON([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ]);
+        }
     }
 
     public function fourPlayerAction(string $code)
     {
-        try{$input=$this->request->getJSON(true)?:$this->request->getPost();$room=(new FourPlayerGameService())->action($code,(int)session()->get('user_id'),$input);$this->publishFourPlayerRoom($room);return $this->response->setJSON(['success'=>true,'room'=>$room,'csrfHash'=>csrf_hash()]);}
-        catch(RuntimeException $e){return $this->response->setStatusCode(422)->setJSON(['success'=>false,'message'=>$e->getMessage(),'csrfHash'=>csrf_hash()]);}
+        try {
+            $userId = (int) session()->get('user_id');
+            session_write_close();
+            $input = $this->request->getJSON(true) ?: $this->request->getPost();
+            $room = (new FourPlayerGameService())->action($code, $userId, $input);
+            $this->publishFourPlayerRoom($room);
+
+            return $this->response->setJSON([
+                'success' => true,
+                'room' => $room,
+                'csrfHash' => csrf_hash(),
+            ]);
+        } catch (RuntimeException $e) {
+            return $this->response->setStatusCode(422)->setJSON([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'csrfHash' => csrf_hash(),
+            ]);
+        }
     }
 
     public function fourPlayerRematch(string $code)
     {
-        try{$room=(new FourPlayerGameService())->rematch($code,(int)session()->get('user_id'));$this->publishFourPlayerRoom($room);return $this->response->setJSON(['success'=>true,'room'=>$room,'csrfHash'=>csrf_hash()]);}
-        catch(RuntimeException $e){return $this->response->setStatusCode(422)->setJSON(['success'=>false,'message'=>$e->getMessage(),'csrfHash'=>csrf_hash()]);}
+        try {
+            $userId = (int) session()->get('user_id');
+            session_write_close();
+            $room = (new FourPlayerGameService())->rematch($code, $userId);
+            $this->publishFourPlayerRoom($room);
+
+            return $this->response->setJSON([
+                'success' => true,
+                'room' => $room,
+                'csrfHash' => csrf_hash(),
+            ]);
+        } catch (RuntimeException $e) {
+            return $this->response->setStatusCode(422)->setJSON([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'csrfHash' => csrf_hash(),
+            ]);
+        }
     }
 
     public function state(string $code)
@@ -233,7 +278,24 @@ class GameRooms extends BaseController
 
     public function leave(string $code)
     {
-        (new GameRoomService())->leave($code, (int) session()->get('user_id'));
+        $fourPlayerService = new FourPlayerGameService();
+        if ($fourPlayerService->isFourPlayerGame($code)) {
+            $result = $fourPlayerService->leave($code, (int) session()->get('user_id'));
+            if ($result['userIds'] !== []) {
+                (new RealtimePublisher())->user(
+                    $result['userIds'],
+                    'game-room',
+                    [
+                        'roomCode' => $result['code'],
+                        'game' => $result['game'],
+                        'status' => $result['status'],
+                        'version' => $result['version'],
+                    ]
+                );
+            }
+        } else {
+            (new GameRoomService())->leave($code, (int) session()->get('user_id'));
+        }
         if ($this->request->isAJAX()) {
             return $this->response->setJSON(['success' => true, 'csrfHash' => csrf_hash()]);
         }

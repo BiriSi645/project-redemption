@@ -2,9 +2,42 @@
 
 declare(strict_types=1);
 
+$configuredBaseUrl = trim((string) (getenv('APP_BASE_URL') ?: ''));
+$vercelDeploymentUrl = trim((string) (getenv('VERCEL_URL') ?: ''));
+$releaseVersion = trim((string) (
+    getenv('APP_VERSION')
+    ?: getenv('VERCEL_GIT_COMMIT_SHA')
+    ?: $vercelDeploymentUrl
+));
+$baseUrl = $configuredBaseUrl !== '' ? $configuredBaseUrl : $vercelDeploymentUrl;
+
+if ($baseUrl !== '' && ! str_contains($baseUrl, '://')) {
+    $baseUrl = 'https://' . $baseUrl;
+}
+
+$parts = $baseUrl === '' ? false : parse_url($baseUrl);
+if (
+    filter_var($baseUrl, FILTER_VALIDATE_URL) === false
+    ||
+    ! is_array($parts)
+    || strtolower((string) ($parts['scheme'] ?? '')) !== 'https'
+    || empty($parts['host'])
+    || isset($parts['user'])
+    || isset($parts['pass'])
+    || isset($parts['query'])
+    || isset($parts['fragment'])
+) {
+    throw new RuntimeException('APP_BASE_URL veya VERCEL_URL geçerli bir HTTPS adresi olmalıdır.');
+}
+
+$baseUrl = 'https://' . $parts['host']
+    . (isset($parts['port']) ? ':' . $parts['port'] : '')
+    . rtrim((string) ($parts['path'] ?? ''), '/') . '/';
+
 $vercelConfig = [
-    'app.baseURL' => 'https://project-redemption.vercel.app/',
+    'app.baseURL' => $baseUrl,
     'app.indexPage' => '',
+    'app.version' => $releaseVersion,
 ];
 
 foreach ($vercelConfig as $key => $value) {

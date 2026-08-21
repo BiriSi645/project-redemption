@@ -44,6 +44,33 @@ function clampInt(value, fallback, min, max) {
     return Math.max(min, Math.min(max, parsed));
 }
 
+function databaseSslOptions(host) {
+    const localHost = ['localhost', '127.0.0.1', '::1'].includes(host.toLowerCase());
+    const production = process.env.NODE_ENV === 'production' || Boolean(process.env.RENDER);
+    const sslEnabled = String(process.env.DB_SSL ?? (localHost ? 'false' : 'true')).toLowerCase() !== 'false';
+    if (!sslEnabled) {
+        if (production) throw new Error('Production ortamında DB_SSL kapatılamaz.');
+        return null;
+    }
+
+    const encodedCa = String(process.env.DB_SSL_CA_BASE64 || '').trim();
+    const configuredCa = encodedCa
+        ? Buffer.from(encodedCa, 'base64').toString('utf8')
+        : String(process.env.DB_SSL_CA || '').replace(/\\n/g, '\n').trim();
+    if (configuredCa && !configuredCa.includes('-----BEGIN CERTIFICATE-----')) {
+        throw new Error('DB SSL CA sertifikası geçerli PEM biçiminde değil.');
+    }
+    if (production && !configuredCa) {
+        throw new Error('Production için DB_SSL_CA veya DB_SSL_CA_BASE64 zorunludur.');
+    }
+
+    return {
+        ...(configuredCa ? { ca: configuredCa } : {}),
+        rejectUnauthorized: true,
+        minVersion: 'TLSv1.2',
+    };
+}
+
 function dbPool() {
     if (pool) return pool;
 
@@ -52,8 +79,7 @@ function dbPool() {
     }
 
     const host = String(process.env.DB_HOST);
-    const localHost = ['localhost', '127.0.0.1', '::1'].includes(host.toLowerCase());
-    const sslEnabled = String(process.env.DB_SSL ?? (localHost ? 'false' : 'true')).toLowerCase() !== 'false';
+    const ssl = databaseSslOptions(host);
 
     pool = mysql.createPool({
         host,
@@ -67,7 +93,7 @@ function dbPool() {
         queueLimit: 0,
         enableKeepAlive: true,
         keepAliveInitialDelay: 0,
-        ...(sslEnabled ? { ssl: { rejectUnauthorized: false } } : {}),
+        ...(ssl ? { ssl } : {}),
     });
 
     return pool;

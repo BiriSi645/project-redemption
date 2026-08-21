@@ -16,6 +16,15 @@
 
 # CI_ENVIRONMENT = development
 
+# HTTPS production deployments may also set this explicitly. Cookie.php
+# already enables it automatically when CI_ENVIRONMENT is production.
+# cookie.secure = true
+
+# Canonical production/custom-domain URL. Set this only in the Production
+# environment on Vercel so Preview deployments can use VERCEL_URL automatically.
+# APP_BASE_URL = https://example.com/
+# APP_VERSION = deploy-or-commit-sha
+
 #--------------------------------------------------------------------
 # APP
 #--------------------------------------------------------------------
@@ -38,6 +47,12 @@
 # database.default.DBDriver = MySQLi
 # database.default.DBPrefix =
 # database.default.port = 3306
+
+# Vercel WebSocket function database TLS settings (api/ws.js):
+# Production requires one of the following. DB_SSL_CA_BASE64 is easier to
+# paste into hosting dashboards; encode the provider's ca.pem file as Base64.
+# DB_SSL_CA_BASE64 =
+# DB_SSL_CA = "-----BEGIN CERTIFICATE-----\\n...\\n-----END CERTIFICATE-----"
 
 # If you use MySQLi as tests, first update the values of Config\Database::$tests.
 # database.tests.hostname = localhost

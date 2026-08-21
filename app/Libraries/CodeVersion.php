@@ -17,6 +17,14 @@ class CodeVersion
             return hash('sha256', $releaseVersion);
         }
 
+        // Production requests must never recursively scan the deployment.
+        // api/index.php normally supplies app.version from the Vercel commit
+        // SHA/deployment URL; this stable fallback is only a misconfiguration
+        // safeguard.
+        if (ENVIRONMENT === 'production') {
+            return hash('sha256', 'production-version-unavailable');
+        }
+
         $cache = service('cache');
         $cached = $cache->get(self::CACHE_KEY);
         if (is_string($cached) && $cached !== '') {

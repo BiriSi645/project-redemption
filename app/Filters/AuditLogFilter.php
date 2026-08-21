@@ -21,7 +21,8 @@ class AuditLogFilter implements FilterInterface
 
         $path = trim($request->getUri()->getPath(), '/');
         $path = preg_replace('#^index\.php/?#', '', $path) ?? $path;
-        if (in_array($path, ['login', 'register', 'logout'], true)) {
+        $path = AuditLogger::sanitizePath($path);
+        if (in_array($path, ['login', 'register', 'logout', 'profile/delete'], true)) {
             return;
         }
         if ($path === 'games/score' || preg_match('#^games/room/[a-zA-Z0-9]+/move$#', $path) || preg_match('#^messages/\d+/send$#', $path)) {

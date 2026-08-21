@@ -153,11 +153,11 @@
         ) ?>" autocomplete="email" required>
 
             <label for="password">Şifre</label>
-            <input id="password" type="password" name="password" minlength="6"
+            <input id="password" type="password" name="password" minlength="<?= \App\Libraries\PasswordPolicy::MIN_LENGTH ?>"
                 autocomplete="new-password" required>
 
             <label for="password_confirm">Şifre tekrar</label>
-            <input id="password_confirm" type="password" name="password_confirm" minlength="6"
+            <input id="password_confirm" type="password" name="password_confirm" minlength="<?= \App\Libraries\PasswordPolicy::MIN_LENGTH ?>"
                 autocomplete="new-password" required>
 
             <button type="submit">Hesap Oluştur</button>

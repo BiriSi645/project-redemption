@@ -5,6 +5,8 @@ namespace App\Controllers;
 use App\Models\UserModel;
 use App\Libraries\AuditLogger;
 use App\Libraries\AuthRateLimiter;
+use App\Libraries\DatabaseAuthRateLimitStore;
+use App\Libraries\PasswordPolicy;
 
 class Auth extends BaseController
 {
@@ -12,6 +14,7 @@ class Auth extends BaseController
     private const EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS = 60;
     private const EMAIL_VERIFICATION_MAX_ATTEMPTS = 5;
     private const AUTH_RATE_WINDOW_SECONDS = 300;
+    private const REGISTER_RATE_MAX_ATTEMPTS = 5;
     public function index()
     {
         if (session()->get('logged_in')) {
@@ -44,12 +47,30 @@ class Auth extends BaseController
             return redirect()->to(site_url('dashboard'));
         }
 
+        if ($this->rateLimited('register', self::REGISTER_RATE_MAX_ATTEMPTS)) {
+            AuditLogger::record(
+                null,
+                'auth.register_rate_limited',
+                'IP adresi için kayıt oluşturma sınırı aşıldı',
+                'POST',
+                'register',
+                429
+            );
+
+            return redirect()
+                ->back()
+                ->withInput()
+                ->with('errors', [
+                    'register' => 'Çok fazla kayıt denemesi yapıldı. Lütfen birkaç dakika sonra tekrar deneyin.',
+                ]);
+        }
+
         $password        = (string) $this->request->getPost('password');
         $passwordConfirm = (string) $this->request->getPost('password_confirm');
 
-        if (strlen($password) < 6) {
+        if (! PasswordPolicy::accepts($password)) {
             return redirect()->back()->withInput()->with('errors', [
-                'password' => 'Şifre en az 6 karakter olmalıdır.',
+                'password' => PasswordPolicy::minimumLengthMessage(),
             ]);
         }
 
@@ -607,16 +628,11 @@ class Auth extends BaseController
         $emailAddress = strtolower(trim((string) ($this->request->getPost('email') ?: session()->get('verification_email'))));
 
         if ($this->rateLimited('verification:' . hash('sha256', $emailAddress), 5)) {
-            return redirect()->to(site_url('verify-email'))->with('error', 'Çok fazla kod isteği yapıldı. Lütfen birkaç dakika sonra tekrar deneyin.');
+            return $this->genericVerificationResendResponse();
         }
 
         if ($emailAddress === '') {
-            return redirect()
-                ->to(site_url('login'))
-                ->with(
-                    'error',
-                    'Geçersiz e-posta adresi.'
-                );
+            return $this->genericVerificationResendResponse();
         }
 
         $userModel = new UserModel();
@@ -626,24 +642,14 @@ class Auth extends BaseController
             ->first();
 
         if (! $user) {
-            return redirect()
-                ->to(site_url('login'))
-                ->with(
-                    'success',
-                    'Hesap uygunsa doğrulama kodu gönderildi.'
-                );
+            return $this->genericVerificationResendResponse();
         }
 
         session()->set('verification_email', $user['email']);
 
         if (! empty($user['email_verified_at'])) {
             session()->remove('verification_email');
-            return redirect()
-                ->to(site_url('login'))
-                ->with(
-                    'success',
-                    'Bu e-posta adresi zaten doğrulanmış. Giriş yapabilirsiniz.'
-                );
+            return $this->genericVerificationResendResponse();
         }
 
         $sentAt =
@@ -658,22 +664,7 @@ class Auth extends BaseController
                 $secondsSinceSend
                 < self::EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS
             ) {
-                $wait =
-                    self::EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS
-                    - max(0, $secondsSinceSend);
-
-                return redirect()
-                    ->to(site_url('verify-email'))
-                    ->with(
-                        'error',
-                        'Yeni kod istemek için '
-                        . $wait
-                        . ' saniye bekleyin.'
-                    )
-                    ->with(
-                        'verification_pending',
-                        $this->verificationPendingData($user)
-                    );
+                return $this->genericVerificationResendResponse();
             }
         }
 
@@ -710,12 +701,7 @@ class Auth extends BaseController
             );
 
         if (! $updated) {
-            return redirect()
-                ->to(site_url('verify-email'))
-                ->with(
-                    'error',
-                    'Yeni doğrulama kodu oluşturulamadı.'
-                );
+            return $this->genericVerificationResendResponse();
         }
 
         $user = array_merge(
@@ -749,16 +735,7 @@ class Auth extends BaseController
                 $failedEmailUpdates
             );
 
-            return redirect()
-                ->to(site_url('verify-email'))
-                ->with(
-                    'error',
-                    'Doğrulama kodu e-postası gönderilemedi. Tekrar deneyebilirsiniz.'
-                )
-                ->with(
-                    'verification_pending',
-                    $this->verificationPendingData($user)
-                );
+            return $this->genericVerificationResendResponse();
         }
 
         AuditLogger::record(
@@ -770,16 +747,7 @@ class Auth extends BaseController
             200
         );
 
-        return redirect()
-            ->to(site_url('verify-email'))
-            ->with(
-                'success',
-                'Yeni 6 haneli doğrulama kodu e-posta adresinize gönderildi.'
-            )
-            ->with(
-                'verification_pending',
-                $this->verificationPendingData($user)
-            );
+        return $this->genericVerificationResendResponse();
     }
 
     public function sendPasswordReset()
@@ -946,10 +914,8 @@ class Auth extends BaseController
 
             log_message(
                 'error',
-                'Şifre sıfırlama e-postası gönderilemedi. User ID: '
-                . $user['id']
-                . ' Debug: '
-                . $email->printDebugger()
+                'Şifre sıfırlama e-postası gönderilemedi. User ID: {userId}',
+                ['userId' => (int) $user['id']]
             );
 
             return redirect()
@@ -1038,12 +1004,12 @@ class Auth extends BaseController
         $password = (string) $this->request->getPost('password');
         $passwordConfirm = (string) $this->request->getPost('password_confirm');
 
-        if (strlen($password) < 6) {
+        if (! PasswordPolicy::accepts($password)) {
             return redirect()
                 ->back()
                 ->withInput()
                 ->with('errors', [
-                    'password' => 'Şifre en az 6 karakter olmalıdır.',
+                    'password' => PasswordPolicy::minimumLengthMessage(),
                 ]);
         }
 
@@ -1134,9 +1100,16 @@ class Auth extends BaseController
         );
     }
 
+    private function genericVerificationResendResponse()
+    {
+        return redirect()
+            ->to(site_url('login'))
+            ->with('success', 'Hesap uygunsa doğrulama kodu gönderildi.');
+    }
+
     private function rateLimited(string $action, int $maximumAttempts): bool
     {
-        return (new AuthRateLimiter(cache(), self::AUTH_RATE_WINDOW_SECONDS))->hit(
+        return (new AuthRateLimiter(new DatabaseAuthRateLimitStore(db_connect()), self::AUTH_RATE_WINDOW_SECONDS))->hit(
             $action,
             (string) $this->request->getIPAddress(),
             $maximumAttempts
@@ -1145,7 +1118,7 @@ class Auth extends BaseController
 
     private function clearRateLimit(string $action): void
     {
-        (new AuthRateLimiter(cache(), self::AUTH_RATE_WINDOW_SECONDS))->clear(
+        (new AuthRateLimiter(new DatabaseAuthRateLimitStore(db_connect()), self::AUTH_RATE_WINDOW_SECONDS))->clear(
             $action,
             (string) $this->request->getIPAddress()
         );
@@ -1298,20 +1271,19 @@ class Auth extends BaseController
             </p>
         ');
 
-       if ($email->send(false)) {
-    return true;
-}
+        if ($email->send(false)) {
+            return true;
+        }
 
-    if ($email->send(false)) {
-        return true;
-    }
+        log_message(
+            'error',
+            'Doğrulama kodu e-postası gönderilemedi. User ID: {userId}; resend: {isResend}',
+            [
+                'userId'  => (int) ($user['id'] ?? 0),
+                'isResend' => $isResend ? 'yes' : 'no',
+            ]
+        );
 
-    log_message(
-        'error',
-        'Doğrulama kodu e-postası gönderilemedi: '
-        . $email->printDebugger([])
-    );
-
-    return false;
+        return false;
         }
 }

@@ -197,7 +197,7 @@
             </label>
 
             <div class="password-wrap">
-                <input id="password" type="password" name="password" autocomplete="new-password"
+                <input id="password" type="password" name="password" minlength="<?= \App\Libraries\PasswordPolicy::MIN_LENGTH ?>" autocomplete="new-password"
                     required>
                 <button class="password-toggle" type="button" data-password-toggle="password"
                     aria-controls="password" aria-pressed="false">Göster</button>
@@ -208,7 +208,7 @@
             </label>
 
             <div class="password-wrap">
-                <input id="password_confirm" type="password" name="password_confirm"
+                <input id="password_confirm" type="password" name="password_confirm" minlength="<?= \App\Libraries\PasswordPolicy::MIN_LENGTH ?>"
                     autocomplete="new-password" required>
                 <button class="password-toggle" type="button"
                     data-password-toggle="password_confirm" aria-controls="password_confirm"

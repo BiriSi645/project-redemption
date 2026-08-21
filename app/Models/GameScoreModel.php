@@ -6,6 +6,12 @@ use CodeIgniter\Model;
 
 class GameScoreModel extends Model
 {
+    /**
+     * Scores in this table are reported by browser-only games and are not
+     * suitable for prizes, ranking rewards, or other competitive decisions.
+     */
+    public const VERIFICATION = 'client-reported';
+
     protected $table = 'game_scores';
     protected $primaryKey = 'id';
     protected $returnType = 'array';
