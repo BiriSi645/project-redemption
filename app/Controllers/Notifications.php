@@ -28,7 +28,6 @@ class Notifications extends BaseController
     public function preview()
     {
         $userId = (int) session()->get('user_id');
-        session_write_close();
 
         (new TaskReminderService())->createDueSoonNotifications($userId);
         $model = new NotificationModel();

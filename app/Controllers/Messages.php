@@ -13,7 +13,6 @@ class Messages extends BaseController
     public function preview()
     {
         $userId = (int) session()->get('user_id');
-        session_write_close();
 
         $model = new DirectConversationModel();
         $conversations = $model->recentForUser($userId);

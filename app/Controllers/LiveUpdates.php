@@ -12,7 +12,6 @@ class LiveUpdates extends BaseController
     public function status()
     {
         $userId = (int) session()->get('user_id');
-        session_write_close();
 
         (new GameRoomService())->cleanupInactiveRooms();
         (new TaskReminderService())->createDueSoonNotifications($userId);
