@@ -114,7 +114,7 @@ Production'da `api/ws.js` veritabanı sertifikasını doğrular. Aiven'in `ca.pe
 
 Çıktıyı Vercel'de `DB_SSL_CA_BASE64` olarak kaydedin. Sertifika olmadan production WebSocket servisi bilinçli olarak DB bağlantısı açmaz.
 
-Production/custom domain için Vercel'de `APP_BASE_URL=https://example.com/` tanımlayın. Bunu yalnızca Production ortamına uygulayın; Preview deployment'lar Vercel'in sağladığı `VERCEL_URL` değerini otomatik kullanır.
+Production'da kalıcı proje domaini Vercel'in `VERCEL_PROJECT_PRODUCTION_URL` sistem değişkeninden, Preview deployment'larda ise deployment'a özel `VERCEL_URL` değerinden otomatik alınır. Custom domain kullanıyorsanız Production ortamında `APP_BASE_URL=https://example.com/` tanımlayarak bunların önüne geçebilirsiniz.
 
 Kod sürümü production'da sırasıyla `APP_VERSION`, `VERCEL_GIT_COMMIT_SHA` veya deployment'a özel `VERCEL_URL` üzerinden belirlenir. Normal Vercel Git deployment'ında ayrıca ayar gerekmez; Git dışı deployment kullanıyorsanız `APP_VERSION` değerini her yayında değişen release/commit kimliği olarak tanımlayın.
 

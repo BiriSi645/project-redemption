@@ -31,5 +31,6 @@ final class AuthSessionRevocationTest extends CIUnitTestCase
         $this->assertStringContainsString("select('id,is_active,role,auth_version')", $source);
         $this->assertStringContainsString("session()->get('auth_version')", $source);
         $this->assertStringContainsString("session()->destroy()", $source);
+        $this->assertStringNotContainsString("Şifreniz değiştirildiği için", $source);
     }
 }

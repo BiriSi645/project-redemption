@@ -23,15 +23,14 @@ class AuthFilter implements FilterInterface
             ->find($userId);
         if (! $user || (int) ($user['is_active'] ?? 1) !== 1) {
             session()->destroy();
-            return redirect()->to(site_url('login'))->with('errors', ['auth'=>'Hesabınız aktif değil.']);
+
+            return redirect()->to(site_url('login'));
         }
 
         if ((int) session()->get('auth_version') !== (int) ($user['auth_version'] ?? 1)) {
             session()->destroy();
 
-            return redirect()
-                ->to(site_url('login'))
-                ->with('errors', ['auth' => 'Şifreniz değiştirildiği için yeniden giriş yapmalısınız.']);
+            return redirect()->to(site_url('login'));
         }
 
         if (session()->get('role') !== $user['role']) {
